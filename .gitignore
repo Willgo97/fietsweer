@@ -1,0 +1,25 @@
+# Build output
+build/
+app/build/
+.gradle/
+.cxx/
+
+# Local machine configuration — contains absolute SDK paths
+local.properties
+
+# Signing material. The release keystore lives in ~/.android/keystores/ and its
+# passwords in ~/.gradle/gradle.properties; neither belongs in the repository.
+*.jks
+*.keystore
+keystore.properties
+signing.properties
+
+# IDE
+.idea/
+*.iml
+.DS_Store
+captures/
+
+# Release artefacts are attached to GitHub Releases, not committed
+*.apk
+*.aab

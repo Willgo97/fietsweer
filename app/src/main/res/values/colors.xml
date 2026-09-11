@@ -1,0 +1,9 @@
+<resources>
+    <color name="brand_start">#0B3D5C</color>
+    <color name="brand_end">#18A0A8</color>
+    <color name="ic_launcher_background">#0E3A55</color>
+    <color name="splash_bg">#0E3A55</color>
+    <color name="widget_ink">#FF141A1E</color>
+    <color name="widget_muted">#FF5E6A72</color>
+    <color name="widget_divider">#FFDDE4E9</color>
+</resources>

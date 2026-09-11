@@ -1,0 +1,8 @@
+<resources>
+    <string name="widget_label">Welke jas?</string>
+    <string name="widget_description">Het jasadvies voor beide ritten van vandaag.</string>
+    <string name="widget_preview_headline">Neem een regenjas mee</string>
+    <string name="widget_preview_chips">Regenjas · Warme jas</string>
+    <string name="widget_preview_leg1">Heenrit  08:00  95% · 12°</string>
+    <string name="widget_preview_leg2">Terugrit  17:30  droog · 16°</string>
+</resources>
