@@ -45,7 +45,7 @@ class AlertWorker(context: Context, params: WorkerParameters) : CoroutineWorker(
 
         Notifier.postAdvice(applicationContext, alert, advice, txt)
         prefs.update { it.copy(lastNotifiedAt = System.currentTimeMillis()) }
-        nl.fietsweer.app.widget.WidgetUpdater.redraw(applicationContext)
+        nl.fietsweer.app.widget.WidgetUpdater.publish(applicationContext, settings, forecast)
         return Result.success()
     }
 }

@@ -211,6 +211,10 @@ open class Txt {
     open val settingsLook = "Appearance"
     open val settingsWidget = "Home screen"
     open val widgetAdd = "Add the widget"
+    open val widgetSizeNormal = "Normal, 4 \u00d7 2"
+    open val widgetSizeSlim = "Slim, 4 \u00d7 1"
+    open val widgetResizeHint =
+        "Long-press the widget on your home screen and drag its edges to switch size."
     open val widgetAddDone = "Check your home screen"
     open val widgetUnsupported = "Add it from your launcher's widget list"
     open val settingsAbout = "About"
@@ -484,6 +488,10 @@ object NlTxt : Txt() {
     override val settingsLook = "Uiterlijk"
     override val settingsWidget = "Startscherm"
     override val widgetAdd = "Widget toevoegen"
+    override val widgetSizeNormal = "Normaal, 4 \u00d7 2"
+    override val widgetSizeSlim = "Smal, 4 \u00d7 1"
+    override val widgetResizeHint =
+        "Houd de widget op je startscherm ingedrukt en sleep de randen om te wisselen."
     override val widgetAddDone = "Kijk op je startscherm"
     override val widgetUnsupported = "Voeg hem toe via de widgetlijst van je launcher"
     override val settingsAbout = "Over"

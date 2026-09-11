@@ -54,7 +54,7 @@ object Repository {
                 if (fc.hasModels || previous == null || !sameRoute) {
                     routeKey = keyOf(settings)
                     _state.value = ForecastUi(loading = false, forecast = fc, error = null)
-                    nl.fietsweer.app.widget.WidgetUpdater.redraw(context)
+                    nl.fietsweer.app.widget.WidgetUpdater.publish(context, settings, fc)
                 } else {
                     // A failed refresh should not throw away a perfectly good
                     // forecast; keep it on screen and mark it stale instead.

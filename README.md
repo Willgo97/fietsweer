@@ -34,8 +34,11 @@ that is the decision you actually make in the morning.
 | **Alerts** | Your notification times — any number of them, per weekday, each covering the outbound ride, the return ride or both |
 | **Settings** | Locations, departure times, still-air pace, whether the wind changes the ride time, the thresholds that decide "wet" and "cold", theme, language, map style and the widget |
 
-**Widget.** A 4×2 home screen widget with the headline, what to bring and both
-rides. Add it from Settings with one tap.
+**Widget.** A home screen widget with the headline, what to bring and both
+rides. Add it from Settings with one tap; it resizes from a full 4×2 card down
+to a slim 4×1 bar, with a layout for each. What it draws is kept on disk, so a
+redraw after Android has reclaimed the app process shows the last real answer
+instead of flashing an error card and correcting itself a moment later.
 
 ---
 
@@ -207,7 +210,9 @@ A few things worth knowing if you come back to this later:
   tiles; dark mode is the same tiles run through an invert + hue-rotate colour
   matrix rather than a second tile server.
 - **Forecasts are cached in memory only**, 15 minutes. A cold start refetches;
-  it takes a second or two.
+  it takes a second or two. The widget does not depend on that cache — it keeps
+  its own small snapshot of the strings it draws, precisely so that losing the
+  process does not make it flicker.
 - **Times come back from Open-Meteo as unix timestamps**, so nothing depends on
   parsing local-time strings.
 

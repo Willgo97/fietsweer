@@ -349,21 +349,22 @@ fun SettingsScreen(
         item {
             val context = LocalContext.current
             SectionCard(title = t.settingsWidget) {
-                Box(
-                    Modifier
-                        .fillMaxWidth()
-                        .height(132.dp)
-                ) {
-                    AndroidView(
-                        modifier = Modifier.fillMaxSize(),
-                        factory = { ctx -> FrameLayout(ctx) },
-                        update = { frame ->
-                            frame.removeAllViews()
-                            val views = WidgetRenderer.build(frame.context, settings, forecast)
-                            frame.addView(views.apply(frame.context, frame))
-                        }
-                    )
+                val snapshot = remember(settings, forecast) {
+                    WidgetRenderer.snapshotFor(settings, forecast)
                 }
+                WidgetPreview(t.widgetSizeNormal, 132) {
+                    WidgetRenderer.single(it, settings, snapshot, compact = false)
+                }
+                Spacer(Modifier.height(14.dp))
+                WidgetPreview(t.widgetSizeSlim, 64) {
+                    WidgetRenderer.single(it, settings, snapshot, compact = true)
+                }
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    t.widgetResizeHint,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 Spacer(Modifier.height(12.dp))
                 FilledTonalButton(
                     onClick = {
@@ -428,6 +429,34 @@ fun SettingsScreen(
             onConfirm = { h, m ->
                 onUpdate { it.copy(returnHour = h, returnMinute = m) }
                 editingReturn = false
+            }
+        )
+    }
+}
+
+@Composable
+private fun WidgetPreview(
+    label: String,
+    height: Int,
+    build: (android.content.Context) -> android.widget.RemoteViews
+) {
+    Text(
+        label.uppercase(),
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+    Spacer(Modifier.height(6.dp))
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .height(height.dp)
+    ) {
+        AndroidView(
+            modifier = Modifier.fillMaxSize(),
+            factory = { ctx -> FrameLayout(ctx) },
+            update = { frame ->
+                frame.removeAllViews()
+                frame.addView(build(frame.context).apply(frame.context, frame))
             }
         )
     }

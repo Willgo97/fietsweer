@@ -3,8 +3,7 @@ package nl.fietsweer.app.widget
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
-import nl.fietsweer.app.data.Prefs
-import nl.fietsweer.app.data.Repository
+import android.os.Bundle
 
 class JacketWidget : AppWidgetProvider() {
 
@@ -13,14 +12,28 @@ class JacketWidget : AppWidgetProvider() {
         manager: AppWidgetManager,
         appWidgetIds: IntArray
     ) {
-        // Paint immediately with whatever is cached, then go and fetch.
-        val settings = Prefs.get(context).also { it.reload() }.current
-        val views = WidgetRenderer.build(context, settings, Repository.state.value.forecast)
-        manager.updateAppWidget(appWidgetIds, views)
+        // Paint the stored snapshot straight away so the widget never blinks
+        // through an empty state, then go and see whether it is still true.
+        WidgetUpdater.redraw(context)
         WidgetUpdater.requestRefresh(context)
+    }
+
+    override fun onAppWidgetOptionsChanged(
+        context: Context,
+        manager: AppWidgetManager,
+        appWidgetId: Int,
+        newOptions: Bundle
+    ) {
+        // Resized: the size-specific layouts are already in the RemoteViews, but
+        // repaint so an older launcher picks the right one up.
+        WidgetUpdater.redraw(context)
     }
 
     override fun onEnabled(context: Context) {
         WidgetUpdater.requestRefresh(context)
+    }
+
+    override fun onDisabled(context: Context) {
+        WidgetStore.clear(context)
     }
 }
