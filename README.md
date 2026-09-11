@@ -221,3 +221,12 @@ A few things worth knowing if you come back to this later:
   User-Agent and caches tiles on disk, as the tile usage policy asks. This is
   fine for personal use; a widely distributed build should move to its own tile
   source.
+
+## Licence
+
+Public domain, via [the Unlicense](https://unlicense.org). Do whatever you like
+with it — copy it, sell it, put your own name on it. No attribution required.
+
+The third-party data the app fetches has its own terms: Open-Meteo is CC BY 4.0,
+and OpenStreetMap tiles come with a usage policy that a widely distributed build
+should respect by moving to its own tile source.
