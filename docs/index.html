@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Fietsweer — download</title>
+<style>
+:root{ --ink:#10171c; --muted:#5e6a72; --card:#ffffff; --bg:#eef2f5; --accent:#00658b; }
+@media (prefers-color-scheme:dark){
+  :root{ --ink:#e6ebef; --muted:#9aa4ac; --card:#141a1e; --bg:#0b0f12; --accent:#6dd3ff; }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:16px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
+.card{background:var(--card);border-radius:24px;max-width:460px;width:100%;
+  padding:30px 26px;box-shadow:0 1px 2px rgba(0,0,0,.06),0 12px 34px rgba(0,0,0,.10)}
+.logo{width:64px;height:64px;border-radius:20px;display:block;margin-bottom:20px;
+  background:linear-gradient(135deg,#0b2d4a,#11557f 55%,#17a2a8)}
+.logo svg{width:64px;height:64px}
+h1{font-size:27px;margin:0 0 4px;letter-spacing:-.02em}
+.tag{color:var(--muted);margin:0 0 20px}
+a.btn{display:block;text-align:center;background:var(--accent);color:#fff;
+  text-decoration:none;font-weight:700;font-size:17px;padding:16px;border-radius:16px}
+@media (prefers-color-scheme:dark){ a.btn{color:#05222f} }
+.meta{color:var(--muted);font-size:13px;margin-top:14px}
+.note{margin-top:22px;padding-top:18px;border-top:1px solid rgba(128,128,128,.25);
+  color:var(--muted);font-size:13.5px}
+.note p{margin:0 0 9px}
+code{background:rgba(128,128,128,.16);padding:1px 5px;border-radius:5px;font-size:12.5px}
+a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="card">
+  <svg class="logo" viewBox="0 0 108 108" aria-hidden="true">
+    <rect width="108" height="108" rx="30" fill="url(#g)"/>
+    <defs><linearGradient id="g" x1="0" y1="0" x2="108" y2="108">
+      <stop offset="0" stop-color="#0b2d4a"/><stop offset=".55" stop-color="#11557f"/>
+      <stop offset="1" stop-color="#17a2a8"/></linearGradient></defs>
+    <path d="M54,20 C50,27 46,32 46,36 a8,8 0 0,0 16,0 C62,32 58,27 54,20 Z" fill="#fff"/>
+    <g stroke="#fff" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M27,70 a11,11 0 1,0 22,0 a11,11 0 1,0 -22,0" stroke-width="4.4"/>
+      <path d="M61,70 a11,11 0 1,0 22,0 a11,11 0 1,0 -22,0" stroke-width="4.4"/>
+      <path d="M55,70 L47,50 M47,50 L66,50 M55,70 L66,50 M55,70 L38,70 M47,50 L38,70 M66,50 L72,70 M66,50 L59,46 M42,49 L52,49" stroke-width="4"/>
+    </g>
+  </svg>
+
+  <h1>Fietsweer</h1>
+  <p class="tag">Welke jas moet er mee? · Which jacket do you need today?</p>
+
+  <a class="btn" href="https://github.com/Willgo97/fietsweer/releases/latest/download/Fietsweer.apk">
+    Download voor Android
+  </a>
+  <p class="meta">Altijd de nieuwste versie · Android 8.0 en hoger · ongeveer 1,5 MB</p>
+
+  <div class="note">
+    <p><strong>Blijft hij laden?</strong> Open deze pagina in Chrome in plaats van in
+      het schermpje van je camera-app: tik op de drie puntjes en kies
+      <em>Openen in browser</em>.</p>
+    <p>Android waarschuwt voor een <em>onbekende bron</em>. Dat klopt: de app is
+      ondertekend met een persoonlijke sleutel en gaat niet via de Play Store.
+      Sta installeren toe voor je browser en open het gedownloade bestand.</p>
+    <p>Broncode en uitgaven: <a href="https://github.com/Willgo97/fietsweer">github.com/Willgo97/fietsweer</a></p>
+  </div>
+</div>
+</body>
+</html>
