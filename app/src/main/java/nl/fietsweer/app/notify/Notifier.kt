@@ -18,6 +18,7 @@ import nl.fietsweer.app.data.Alert
 import nl.fietsweer.app.domain.Advice
 import nl.fietsweer.app.domain.AdviceText
 import nl.fietsweer.app.domain.Fmt
+import nl.fietsweer.app.domain.Layer
 import nl.fietsweer.app.domain.Need
 import nl.fietsweer.app.domain.Txt
 
@@ -76,9 +77,11 @@ object Notifier {
         )
 
         val accent = when {
+            advice.rain == Need.YES && advice.layer == Layer.WINTER -> Color.parseColor("#8A5BD6")
             advice.rain == Need.YES -> Color.parseColor("#2D7FF0")
-            advice.warm == Need.YES -> Color.parseColor("#E8873D")
-            advice.rain == Need.MAYBE || advice.warm == Need.MAYBE -> Color.parseColor("#E5B33C")
+            advice.layer == Layer.WINTER -> Color.parseColor("#C85A2B")
+            advice.layer == Layer.VEST -> Color.parseColor("#E8873D")
+            advice.rain == Need.MAYBE -> Color.parseColor("#E5B33C")
             else -> Color.parseColor("#35C46F")
         }
 

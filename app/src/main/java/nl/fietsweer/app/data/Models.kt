@@ -58,8 +58,10 @@ data class Settings(
     val wetThreshold: Double = 0.2,
     /** Percentage of rain risk at which the rain jacket becomes a yes. */
     val rainJacketPercent: Int = 30,
-    /** Bike-feel temperature below which the warm jacket becomes a yes. */
-    val warmJacketTemp: Double = 11.0,
+    /** Bike-feel temperature below which a vest replaces short sleeves. */
+    val vestBelow: Double = 17.0,
+    /** Bike-feel temperature below which a vest is no longer enough. */
+    val winterCoatBelow: Double = 6.0,
 
     val useRadar: Boolean = true,
     val alerts: List<Alert> = emptyList(),

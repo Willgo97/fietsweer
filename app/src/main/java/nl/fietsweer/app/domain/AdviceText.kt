@@ -5,21 +5,37 @@ import nl.fietsweer.app.data.Leg
 /** Turns an [Advice] into the sentences shown on screen and in notifications. */
 object AdviceText {
 
-    fun headline(a: Advice, t: Txt): String = when {
-        a.rain == Need.YES && a.warm == Need.YES -> t.adviceRainAndWarm
-        a.rain == Need.YES -> t.adviceRain
-        a.warm == Need.YES -> t.adviceWarm
-        a.rain == Need.MAYBE && a.warm == Need.MAYBE -> t.adviceMaybeBoth
-        a.rain == Need.MAYBE -> t.adviceMaybeRain
-        a.warm == Need.MAYBE -> t.adviceMaybeWarm
-        else -> t.adviceNone
+    /**
+      * Rain and warmth are independent axes, so the headline names whichever
+      * combination actually applies rather than picking a winner.
+      */
+    fun headline(a: Advice, t: Txt): String = when (a.rain) {
+        Need.YES -> when (a.layer) {
+            Layer.WINTER -> t.adviceRainWinter
+            Layer.VEST -> t.adviceRainVest
+            Layer.SHORT_SLEEVES -> t.adviceRain
+        }
+        Need.MAYBE -> when (a.layer) {
+            Layer.WINTER -> t.adviceMaybeRainWinter
+            Layer.VEST -> t.adviceMaybeRainVest
+            Layer.SHORT_SLEEVES -> t.adviceMaybeRain
+        }
+        Need.NO -> when (a.layer) {
+            Layer.WINTER -> t.adviceWinter
+            Layer.VEST -> t.adviceVest
+            Layer.SHORT_SLEEVES -> t.adviceNone
+        }
     }
 
     /** Short labels for the "take with you" chips. */
     fun chips(a: Advice, t: Txt): List<Pair<String, Boolean>> {
         val out = mutableListOf<Pair<String, Boolean>>()
         if (a.rain != Need.NO) out += t.chipRainJacket to (a.rain == Need.YES)
-        if (a.warm != Need.NO) out += t.chipWarmJacket to (a.warm == Need.YES)
+        when (a.layer) {
+            Layer.WINTER -> out += t.chipWinter to true
+            Layer.VEST -> out += t.chipVest to true
+            Layer.SHORT_SLEEVES -> Unit
+        }
         for (e in a.extras) {
             val label = when (e) {
                 Extra.GLOVES -> t.chipGloves

@@ -57,4 +57,15 @@ object WidgetStore {
     }
 
     fun clear(context: Context) = prefs(context).edit().clear().apply()
+
+    /**
+     * When we last *tried* to refresh, success or not. Separate from the
+     * snapshot's own timestamp: a fetch that keeps failing must still not be
+     * allowed to retrigger itself in a tight loop.
+     */
+    fun lastAttempt(context: Context): Long = prefs(context).getLong("lastAttempt", 0L)
+
+    fun markAttempt(context: Context, at: Long) {
+        prefs(context).edit().putLong("lastAttempt", at).apply()
+    }
 }

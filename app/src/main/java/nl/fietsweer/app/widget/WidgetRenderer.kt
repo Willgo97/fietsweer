@@ -17,6 +17,7 @@ import nl.fietsweer.app.domain.AdviceText
 import nl.fietsweer.app.domain.Engine
 import nl.fietsweer.app.domain.Fmt
 import nl.fietsweer.app.domain.Jacket
+import nl.fietsweer.app.domain.Layer
 import nl.fietsweer.app.domain.Need
 import nl.fietsweer.app.domain.Txt
 import nl.fietsweer.app.notify.Commute
@@ -144,10 +145,11 @@ object WidgetRenderer {
     }
 
     private fun accentFor(a: Advice): Int = when {
-        a.rain == Need.YES && a.warm == Need.YES -> Color.parseColor("#8A5BD6")
+        a.rain == Need.YES && a.layer == Layer.WINTER -> Color.parseColor("#8A5BD6")
         a.rain == Need.YES -> Color.parseColor("#2D7FF0")
-        a.warm == Need.YES -> Color.parseColor("#E07B32")
-        a.rain == Need.MAYBE || a.warm == Need.MAYBE -> Color.parseColor("#DD9A26")
+        a.layer == Layer.WINTER -> Color.parseColor("#C85A2B")
+        a.layer == Layer.VEST -> Color.parseColor("#E07B32")
+        a.rain == Need.MAYBE -> Color.parseColor("#DD9A26")
         else -> Color.parseColor("#1F9D55")
     }
 }

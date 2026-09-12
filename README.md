@@ -94,11 +94,13 @@ height, resolved into head- and cross-components against your travel bearing,
 added to your own speed, and charged through the JAG/TI wind chill relation.
 A 5 °C day with a 20 km/h headwind is not a 5 °C ride.
 
-**The advice** then follows two thresholds you control in Settings: the rain
-risk at which the rain jacket becomes a yes (default 30%), and the bike-felt
-temperature below which the warm jacket becomes a yes (default 11 °C). Between
-"no" and "yes" there is a "maybe". Gloves, a hat, ice warnings, strong wind and
-a water bottle are added when the numbers call for them.
+**The advice** has two independent axes. Rain is a yes/maybe/no against a risk
+threshold you set (default 30%). Warmth is a ladder rather than a switch: above
+the fleece threshold it is short-sleeve weather, below the winter-coat threshold
+you want the heavy one, and in between a fleece. Both thresholds are set in
+Settings and are compared against the *coldest* moment of the ride, because
+arriving frozen is what you remember. Gloves, a hat, ice warnings, strong wind
+and a water bottle are added when the numbers call for them.
 
 ---
 

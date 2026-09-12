@@ -55,6 +55,7 @@ import nl.fietsweer.app.domain.AdviceText
 import nl.fietsweer.app.domain.Bike
 import nl.fietsweer.app.domain.Engine
 import nl.fietsweer.app.domain.Jacket
+import nl.fietsweer.app.domain.Layer
 import nl.fietsweer.app.domain.Need
 import nl.fietsweer.app.domain.RideAssessment
 import nl.fietsweer.app.domain.WindRelation
@@ -235,9 +236,10 @@ private fun HeroCard(advice: Advice) {
     val accents = AppTheme.accents
 
     val (c1, c2) = when {
-        advice.rain == Need.YES && advice.warm == Need.YES -> accents.rain to accents.warm
+        advice.rain == Need.YES && advice.layer == Layer.WINTER -> accents.rain to accents.heat
         advice.rain == Need.YES -> accents.rain to accents.cold
-        advice.warm == Need.YES -> accents.warm to accents.heat
+        advice.layer == Layer.WINTER -> accents.heat to accents.warm
+        advice.layer == Layer.VEST -> accents.warm to accents.uncertain
         advice.anythingNeeded -> accents.uncertain to accents.warm
         else -> accents.dry to accents.mostlyDry
     }
@@ -340,7 +342,7 @@ private fun HeroChip(label: String, strong: Boolean, icon: ImageVector?) {
 @Composable
 private fun iconFor(label: String, t: nl.fietsweer.app.domain.Txt): ImageVector? = when (label) {
     t.chipRainJacket, t.chipHeavy -> Icons.Rounded.Umbrella
-    t.chipWarmJacket, t.chipGloves, t.chipHat -> Icons.Rounded.Checkroom
+    t.chipVest, t.chipWinter, t.chipGloves, t.chipHat -> Icons.Rounded.Checkroom
     t.chipFrost -> Icons.Rounded.AcUnit
     t.chipWindy -> Icons.Rounded.Air
     t.chipHot -> Icons.Rounded.WaterDrop

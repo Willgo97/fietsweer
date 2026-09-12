@@ -98,8 +98,11 @@ fun SettingsScreen(
     var rainPct by remember(settings.rainJacketPercent) {
         mutableFloatStateOf(settings.rainJacketPercent.toFloat())
     }
-    var warmTemp by remember(settings.warmJacketTemp) {
-        mutableFloatStateOf(settings.warmJacketTemp.toFloat())
+    var vestTemp by remember(settings.vestBelow) {
+        mutableFloatStateOf(settings.vestBelow.toFloat())
+    }
+    var winterTemp by remember(settings.winterCoatBelow) {
+        mutableFloatStateOf(settings.winterCoatBelow.toFloat())
     }
 
     val distance = remember(settings.home, settings.work) {
@@ -237,15 +240,46 @@ fun SettingsScreen(
                 )
                 Spacer(Modifier.height(10.dp))
                 LabeledSlider(
-                    label = t.warmJacketBelow,
-                    valueText = t.warmJacketBelowValue(fmt.temp(warmTemp.toDouble())),
-                    value = warmTemp,
-                    range = 2f..20f,
+                    label = t.vestBelowLabel,
+                    valueText = t.feltOnBike(fmt.temp(vestTemp.toDouble())),
+                    value = vestTemp,
+                    range = 8f..26f,
                     steps = 0,
-                    onChange = { warmTemp = it },
+                    onChange = { vestTemp = it },
                     onChangeFinished = {
-                        onUpdate { it.copy(warmJacketTemp = warmTemp.toDouble()) }
+                        onUpdate {
+                            // The ladder only makes sense in order.
+                            val vest = vestTemp.toDouble()
+                            it.copy(
+                                vestBelow = vest,
+                                winterCoatBelow = minOf(it.winterCoatBelow, vest - 2.0)
+                            )
+                        }
                     }
+                )
+                Spacer(Modifier.height(10.dp))
+                LabeledSlider(
+                    label = t.winterBelowLabel,
+                    valueText = t.feltOnBike(fmt.temp(winterTemp.toDouble())),
+                    value = winterTemp,
+                    range = -6f..18f,
+                    steps = 0,
+                    onChange = { winterTemp = it },
+                    onChangeFinished = {
+                        onUpdate {
+                            val winter = winterTemp.toDouble()
+                            it.copy(
+                                winterCoatBelow = winter,
+                                vestBelow = maxOf(it.vestBelow, winter + 2.0)
+                            )
+                        }
+                    }
+                )
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    t.layerLadder(fmt.temp(vestTemp.toDouble()), fmt.temp(winterTemp.toDouble())),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(Modifier.height(8.dp))
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))

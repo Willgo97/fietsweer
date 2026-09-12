@@ -80,17 +80,20 @@ open class Txt {
     open val toHome = "Back home"
     open val takeWithYou = "Take with you"
     open val nothingNeeded = "Nothing needed"
-    open val adviceRainAndWarm = "Rain jacket and a warm jacket"
     open val adviceRain = "Take a rain jacket"
-    open val adviceWarm = "Take a warm jacket"
     open val adviceMaybeRain = "A rain jacket might be wise"
-    open val adviceMaybeWarm = "It will be a bit chilly"
-    open val adviceMaybeBoth = "Maybe a jacket — it is close"
-    open val adviceNone = "No jacket needed"
+    open val adviceVest = "Fleece weather"
+    open val adviceWinter = "Winter coat weather"
+    open val adviceRainVest = "Rain jacket and a fleece"
+    open val adviceRainWinter = "Winter coat and a rain jacket"
+    open val adviceMaybeRainVest = "Fleece, maybe a rain jacket"
+    open val adviceMaybeRainWinter = "Winter coat, maybe a rain jacket"
+    open val adviceNone = "Short sleeves"
     open val adviceNoneSub = "Dry and mild on both rides"
 
     open val chipRainJacket = "Rain jacket"
-    open val chipWarmJacket = "Warm jacket"
+    open val chipVest = "Fleece"
+    open val chipWinter = "Winter coat"
     open val chipGloves = "Gloves"
     open val chipHat = "Hat or buff"
     open val chipWindy = "Strong wind"
@@ -239,8 +242,12 @@ open class Txt {
     open val wetShower = "Real shower"
     open val rainJacketFrom = "Rain jacket from"
     open val rainJacketFromValue = { p: Int -> "$p% chance of rain" }
-    open val warmJacketBelow = "Warm jacket below"
-    open val warmJacketBelowValue = { t: String -> "$t felt on the bike" }
+    open val vestBelowLabel = "Fleece below"
+    open val winterBelowLabel = "Winter coat below"
+    open val feltOnBike = { t: String -> "$t felt on the bike" }
+    open val layerLadder = { vest: String, winter: String ->
+        "Above $vest short sleeves, below $winter a winter coat, in between a fleece."
+    }
     open val useRadarTitle = "Use the rain radar"
     open val useRadarBody = "Buienradar nowcast, Netherlands and Belgium only."
     open val theme = "Theme"
@@ -360,17 +367,20 @@ object NlTxt : Txt() {
     override val toHome = "Terugrit"
     override val takeWithYou = "Neem mee"
     override val nothingNeeded = "Niets nodig"
-    override val adviceRainAndWarm = "Regenjas én een warme jas"
     override val adviceRain = "Neem een regenjas mee"
-    override val adviceWarm = "Neem een warme jas mee"
     override val adviceMaybeRain = "Een regenjas is misschien verstandig"
-    override val adviceMaybeWarm = "Het wordt een beetje fris"
-    override val adviceMaybeBoth = "Misschien een jas — het is randje"
-    override val adviceNone = "Geen jas nodig"
+    override val adviceVest = "Vestweer"
+    override val adviceWinter = "Winterjas aan"
+    override val adviceRainVest = "Regenjas én een vest"
+    override val adviceRainWinter = "Winterjas én een regenjas"
+    override val adviceMaybeRainVest = "Vest aan, regenjas misschien"
+    override val adviceMaybeRainWinter = "Winterjas aan, regenjas misschien"
+    override val adviceNone = "Korte mouwen"
     override val adviceNoneSub = "Droog en zacht op beide ritten"
 
     override val chipRainJacket = "Regenjas"
-    override val chipWarmJacket = "Warme jas"
+    override val chipVest = "Vest"
+    override val chipWinter = "Winterjas"
     override val chipGloves = "Handschoenen"
     override val chipHat = "Muts of buff"
     override val chipWindy = "Harde wind"
@@ -515,8 +525,12 @@ object NlTxt : Txt() {
     override val wetShower = "Echte bui"
     override val rainJacketFrom = "Regenjas vanaf"
     override val rainJacketFromValue = { p: Int -> "$p% kans op nat" }
-    override val warmJacketBelow = "Warme jas onder"
-    override val warmJacketBelowValue = { t: String -> "$t gevoeld op de fiets" }
+    override val vestBelowLabel = "Vest onder"
+    override val winterBelowLabel = "Winterjas onder"
+    override val feltOnBike = { t: String -> "$t gevoeld op de fiets" }
+    override val layerLadder = { vest: String, winter: String ->
+        "Boven $vest korte mouwen, onder $winter een winterjas, daartussen een vest."
+    }
     override val useRadarTitle = "Regenradar gebruiken"
     override val useRadarBody = "Buienradar-nowcast, alleen Nederland en België."
     override val theme = "Thema"

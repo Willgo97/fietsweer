@@ -42,10 +42,25 @@ object WidgetUpdater {
         redraw(ctx)
     }
 
-    /** Fetches in the background and then republishes. */
-    fun requestRefresh(context: Context) {
+    /** At most one background fetch per this interval, whatever pokes us. */
+    private const val MIN_REFRESH_GAP_MS = 10 * 60 * 1000L
+
+    /**
+     * Fetches in the background and then republishes.
+     *
+     * Rate limited on purpose, and not merely to be polite. Enqueuing work makes
+     * WorkManager toggle one of its own receiver components, which fires
+     * PACKAGE_CHANGED, which makes the system re-broadcast an update to every
+     * widget provider in this package — straight back into [JacketWidget.onUpdate].
+     * Without this guard that is an infinite loop: measured at roughly four
+     * widget updates a second, with the launcher repainting each time.
+     */
+    fun requestRefresh(context: Context, force: Boolean = false) {
         val ctx = context.applicationContext
         if (ids(ctx).isEmpty()) return
+        val now = System.currentTimeMillis()
+        if (!force && now - WidgetStore.lastAttempt(ctx) < MIN_REFRESH_GAP_MS) return
+        WidgetStore.markAttempt(ctx, now)
         WorkManager.getInstance(ctx).enqueueUniqueWork(
             "widget-refresh",
             ExistingWorkPolicy.KEEP,

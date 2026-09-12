@@ -30,7 +30,8 @@ class JacketWidget : AppWidgetProvider() {
     }
 
     override fun onEnabled(context: Context) {
-        WidgetUpdater.requestRefresh(context)
+        // First one placed: fetch straight away rather than waiting out the gap.
+        WidgetUpdater.requestRefresh(context, force = true)
     }
 
     override fun onDisabled(context: Context) {
