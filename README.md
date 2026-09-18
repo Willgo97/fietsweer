@@ -29,10 +29,18 @@ that is the decision you actually make in the morning.
 
 | Screen | What is on it |
 |---|---|
-| **Today** | The verdict, both rides with rain risk / felt temperature / wind, current conditions, a 24-hour rain-and-temperature chart, and the best moment to leave |
+| **Today** | The verdict with the current conditions in the same card, the two rides that are still ahead with rain risk / felt temperature / wind, a 24-hour rain-and-temperature chart, and the best moment to leave within the slack around each departure |
 | **Forecast** | A 24-hour departure ribbon at 15-minute resolution, the detail table for any departure slot, dry windows, a per-model agreement matrix, a multi-day outlook and source health |
 | **Alerts** | Your notification times — any number of them, per weekday, each covering the outbound ride, the return ride or both |
-| **Settings** | Locations, departure times, still-air pace, whether the wind changes the ride time, the thresholds that decide "wet" and "cold", theme, language, map style and the widget |
+| **Settings** | Locations, departure times and the slack around them, still-air pace, whether the wind changes the ride time, the thresholds that decide "wet" and "cold", theme, language, map style and the widget |
+
+**A ride has a shelf life.** Each leg carries a window: so much earlier and so
+much later than the time you planned, set per leg in Settings. Inside it the
+app looks for the driest quarter — your own time wins a tie, only a clearly
+better slot pulls you away from it. Once the window has passed, that leg makes
+way for the same ride on the next day, so from the office you are already
+looking at tomorrow morning. Which day a card is about is spelled out on the
+card itself, in the widget and in the notification.
 
 **Widget.** A home screen widget with the headline, what to bring and both
 rides. Add it from Settings with one tap; it resizes from a full 4×2 card down

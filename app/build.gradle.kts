@@ -15,8 +15,8 @@ android {
         applicationId = "nl.fietsweer.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 3
-        versionName = "1.2"
+        versionCode = 4
+        versionName = "1.3"
         resourceConfigurations += listOf("en", "nl")
     }
 
@@ -104,4 +104,6 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
+
+    testImplementation("junit:junit:4.13.2")
 }

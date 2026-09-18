@@ -32,6 +32,9 @@ class Fmt(private val txt: Txt) {
         }
     }
 
+    fun isToday(ms: Long): Boolean =
+        Instant.ofEpochMilli(ms).atZone(zone).toLocalDate() == LocalDate.now(zone)
+
     fun dayShort(ms: Long): String {
         val d = Instant.ofEpochMilli(ms).atZone(zone).toLocalDate()
         return d.dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, locale)
@@ -61,6 +64,17 @@ class Fmt(private val txt: Txt) {
     fun durationText(minutes: Int): String =
         if (minutes >= 60) txt.hoursShort(String.format(locale, "%.1f", minutes / 60.0).removeSuffix(",0").removeSuffix(".0"))
         else txt.minutesShort(minutes)
+
+    /**
+     * A span on the clock rather than a decimal: quarter-hour steps read as
+     * "2 uur 45", never as "2,8 uur".
+     */
+    fun hoursMinutes(minutes: Int): String {
+        if (minutes < 60) return txt.minutesShort(minutes)
+        val h = txt.hoursShort((minutes / 60).toString())
+        val rest = minutes % 60
+        return if (rest == 0) h else "$h $rest"
+    }
 
     fun windRelationWord(r: WindRelation): String = when (r) {
         WindRelation.HEAD -> txt.headwind

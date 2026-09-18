@@ -7,8 +7,10 @@ app/build/
 # Local machine configuration — contains absolute SDK paths
 local.properties
 
-# Signing material. The release keystore lives in ~/.android/keystores/ and its
-# passwords in ~/.gradle/gradle.properties; neither belongs in the repository.
+# Signing material. The release keystore lives next to the other apps' keys in
+# ~/Documents/android-apps/ and its passwords in ~/.gradle/gradle.properties;
+# neither belongs in the repository. Not in ~/.android/ — that directory was
+# wiped on 14 September 2026 and took the previous release key with it.
 *.jks
 *.keystore
 keystore.properties
