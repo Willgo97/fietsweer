@@ -53,16 +53,23 @@ object AdviceText {
 
     fun legName(leg: Leg, t: Txt): String = if (leg == Leg.OUTBOUND) t.toWork else t.toHome
 
+    /**
+     * When a ride leaves, with the day spelled out whenever it is not today —
+     * a leg that has already rolled over is talking about tomorrow.
+     */
+    fun moment(r: RideAssessment, f: Fmt): String =
+        if (f.isToday(r.departureMs)) f.time(r.departureMs) else f.dayTime(r.departureMs)
+
     /** One line per ride, as used in the expanded notification. */
     fun legLine(r: RideAssessment, t: Txt, f: Fmt): String {
         val rain = if (r.risk < 0.10) t.notifDry else t.notifRainPct(r.riskPercent)
         val feel = if (r.hasConditions) " · ${t.feelsLike} ${f.temp(r.bikeFeelC)}" else ""
-        return t.notifLegLine(legName(r.leg, t), f.time(r.departureMs), rain + feel)
+        return t.notifLegLine(legName(r.leg, t), moment(r, f), rain + feel)
     }
 
     fun summary(a: Advice, t: Txt, f: Fmt): String =
         a.rides.joinToString(" · ") { r ->
             val rain = if (r.risk < 0.10) t.notifDry else t.notifRainPct(r.riskPercent)
-            "${f.time(r.departureMs)} $rain"
+            "${moment(r, f)} $rain"
         }
 }

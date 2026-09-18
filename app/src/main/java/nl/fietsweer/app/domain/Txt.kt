@@ -120,7 +120,12 @@ open class Txt {
     open val temperature = "Temperature"
     open val precipitation = "Rain"
     open val bestMomentTitle = "Best moment to leave"
+    open val bestMomentSub = "Within the slack around your departure time"
     open val bestMomentNone = "No really dry window in the next 24 hours"
+    open val bestMomentNoSlots = "No forecast for this window yet"
+    open val onPlannedTime = "right on your departure time"
+    open val minutesEarlier = { m: Int -> "$m min earlier" }
+    open val minutesLater = { m: Int -> "$m min later" }
     open val leaveNow = "Leave now"
     open val lastUpdated = { s: String -> "Updated at $s" }
     open val updating = "Updating…"
@@ -223,6 +228,14 @@ open class Txt {
     open val settingsAbout = "About"
     open val outboundTime = "Leave home at"
     open val returnTime = "Leave work at"
+    open val settingsFlex = "Slack around departure"
+    open val flexEarlier = "Can leave earlier"
+    open val flexLater = "Can leave later"
+    open val flexNone = "not at all"
+    open val flexBody =
+        "How far you may shift from a planned time. The best moment is looked " +
+            "for inside that window, and once the window has passed the ride " +
+            "makes way for the next day's."
     open val cyclingSpeed = "Pace in still air"
     open val cyclingSpeedBody =
         "Your own speed with no wind at all. Head- and tailwind are added on top."
@@ -407,7 +420,12 @@ object NlTxt : Txt() {
     override val temperature = "Temperatuur"
     override val precipitation = "Neerslag"
     override val bestMomentTitle = "Beste moment om te vertrekken"
+    override val bestMomentSub = "Binnen de speling rond je vertrektijd"
     override val bestMomentNone = "Geen echt droog venster in de komende 24 uur"
+    override val bestMomentNoSlots = "Nog geen verwachting voor dit venster"
+    override val onPlannedTime = "precies op je vertrektijd"
+    override val minutesEarlier = { m: Int -> "$m min eerder" }
+    override val minutesLater = { m: Int -> "$m min later" }
     override val leaveNow = "Nu meteen"
     override val lastUpdated = { s: String -> "Bijgewerkt om $s" }
     override val updating = "Bijwerken…"
@@ -507,6 +525,14 @@ object NlTxt : Txt() {
     override val settingsAbout = "Over"
     override val outboundTime = "Vertrek van huis om"
     override val returnTime = "Vertrek van werk om"
+    override val settingsFlex = "Speling rond het vertrek"
+    override val flexEarlier = "Kan eerder weg"
+    override val flexLater = "Kan later weg"
+    override val flexNone = "niet"
+    override val flexBody =
+        "Hoeveel je mag schuiven met een vertrektijd. Binnen dat venster wordt " +
+            "het beste moment gezocht, en zodra het voorbij is maakt de rit " +
+            "plaats voor die van de volgende dag."
     override val cyclingSpeed = "Tempo bij windstil"
     override val cyclingSpeedBody =
         "Je eigen snelheid als het helemaal windstil is. Kop- en meewind komen daar bovenop."

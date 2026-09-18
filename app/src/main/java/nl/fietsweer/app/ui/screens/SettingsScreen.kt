@@ -51,10 +51,13 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import nl.fietsweer.app.data.FLEX_MAX_MIN
 import nl.fietsweer.app.data.Lang
+import nl.fietsweer.app.data.Leg
 import nl.fietsweer.app.data.MapStyle
 import nl.fietsweer.app.data.Settings
 import nl.fietsweer.app.data.ThemeMode
+import nl.fietsweer.app.domain.AdviceText
 import nl.fietsweer.app.domain.Engine
 import nl.fietsweer.app.domain.Geo
 import nl.fietsweer.app.ui.components.LabeledSlider
@@ -171,6 +174,24 @@ fun SettingsScreen(
                         Modifier.weight(1f)
                     ) { editingReturn = true }
                 }
+                Spacer(Modifier.height(20.dp))
+                Text(
+                    t.settingsFlex.uppercase(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(10.dp))
+                FlexEditor(Leg.OUTBOUND, settings, onUpdate)
+                Spacer(Modifier.height(14.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                Spacer(Modifier.height(14.dp))
+                FlexEditor(Leg.RETURN, settings, onUpdate)
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    t.flexBody,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
 
@@ -466,6 +487,78 @@ fun SettingsScreen(
             }
         )
     }
+}
+
+/**
+ * The slack either side of one leg's departure. The late end is also how long
+ * the ride stays on the Today screen, so the window doubles as the moment the
+ * next day's ride takes over.
+ */
+@Composable
+private fun FlexEditor(
+    leg: Leg,
+    settings: Settings,
+    onUpdate: ((Settings) -> Settings) -> Unit
+) {
+    val t = AppTheme.txt
+    val fmt = AppTheme.fmt
+
+    var early by remember(leg, settings.earlyMinFor(leg)) {
+        mutableFloatStateOf(settings.earlyMinFor(leg).toFloat())
+    }
+    var late by remember(leg, settings.lateMinFor(leg)) {
+        mutableFloatStateOf(settings.lateMinFor(leg).toFloat())
+    }
+
+    val base = settings.hourFor(leg) * 60 + settings.minuteFor(leg)
+    fun clock(minutes: Int): String {
+        val v = ((minutes % 1440) + 1440) % 1440
+        return String.format(java.util.Locale.ROOT, "%02d:%02d", v / 60, v % 60)
+    }
+    fun span(m: Float): String =
+        if (m < 1f) t.flexNone else fmt.hoursMinutes(m.roundToInt())
+
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            AdviceText.legName(leg, t),
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.weight(1f)
+        )
+        Text(
+            "${clock(base - early.roundToInt())} – ${clock(base + late.roundToInt())}",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.primary
+        )
+    }
+    Spacer(Modifier.height(4.dp))
+    LabeledSlider(
+        label = t.flexEarlier,
+        valueText = span(early),
+        value = early,
+        range = 0f..FLEX_MAX_MIN.toFloat(),
+        steps = 11,
+        onChange = { early = it },
+        onChangeFinished = {
+            val v = early.roundToInt()
+            onUpdate { s ->
+                if (leg == Leg.OUTBOUND) s.copy(outboundEarlyMin = v) else s.copy(returnEarlyMin = v)
+            }
+        }
+    )
+    LabeledSlider(
+        label = t.flexLater,
+        valueText = span(late),
+        value = late,
+        range = 0f..FLEX_MAX_MIN.toFloat(),
+        steps = 11,
+        onChange = { late = it },
+        onChangeFinished = {
+            val v = late.roundToInt()
+            onUpdate { s ->
+                if (leg == Leg.OUTBOUND) s.copy(outboundLateMin = v) else s.copy(returnLateMin = v)
+            }
+        }
+    )
 }
 
 @Composable

@@ -432,6 +432,25 @@ class Engine(private val fc: RouteForecast, private val settings: Settings) {
     }
 
     /**
+     * Every departure slot on the grid inside [fromMs]..[untilMs]. Used for the
+     * slack around a planned departure, where the question is not "when today"
+     * but "how much better does it get if I wait a bit".
+     */
+    fun scanWindow(leg: Leg, fromMs: Long, untilMs: Long): List<RideAssessment> {
+        if (!fc.hasModels || untilMs < fromMs) return emptyList()
+        val need = Math.ceil(stillAirDurationMin * 2.0 / GRID_MIN).toInt() + 1
+        val last = fc.modelTimes.size - need
+        val out = ArrayList<RideAssessment>()
+        for (i in 0 until last) {
+            val t = fc.modelTimes[i]
+            if (t < fromMs) continue
+            if (t > untilMs) break
+            out += assess(t, leg)
+        }
+        return out
+    }
+
+    /**
      * Mean modelled rainfall for each 15-minute step of one ride, used for the
      * little bar strip under a ride card.
      */

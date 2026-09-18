@@ -51,15 +51,16 @@ fun SectionCard(
     subtitle: String? = null,
     trailing: (@Composable () -> Unit)? = null,
     contentPadding: Int = 16,
+    border: androidx.compose.foundation.BorderStroke? = null,
+    containerColor: Color = MaterialTheme.colorScheme.surfaceContainerLow,
     content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        colors = CardDefaults.cardColors(containerColor = containerColor),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = border
     ) {
         Column(Modifier.padding(contentPadding.dp)) {
             if (title != null) {

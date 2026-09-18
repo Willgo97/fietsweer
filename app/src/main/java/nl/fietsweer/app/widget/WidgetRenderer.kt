@@ -44,7 +44,7 @@ object WidgetRenderer {
         val lines = rides.map { r ->
             val rain = if (r.risk < 0.10) txt.notifDry else "${r.riskPercent}%"
             val feel = if (r.hasConditions) " · ${fmt.temp(r.bikeFeelC)}" else ""
-            "${AdviceText.legName(r.leg, txt)}  ${fmt.time(r.departureMs)}  $rain$feel"
+            "${AdviceText.legName(r.leg, txt)}  ${AdviceText.moment(r, fmt)}  $rain$feel"
         }
 
         return WidgetSnapshot(
