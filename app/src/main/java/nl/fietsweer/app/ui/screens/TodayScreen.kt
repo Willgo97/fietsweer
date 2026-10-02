@@ -55,7 +55,6 @@ import nl.fietsweer.app.data.Leg
 import nl.fietsweer.app.data.Settings
 import nl.fietsweer.app.domain.Advice
 import nl.fietsweer.app.domain.AdviceText
-import nl.fietsweer.app.domain.Bike
 import nl.fietsweer.app.domain.Engine
 import nl.fietsweer.app.domain.Jacket
 import nl.fietsweer.app.domain.Layer
@@ -73,9 +72,7 @@ import nl.fietsweer.app.ui.components.LegendDot
 import nl.fietsweer.app.ui.components.LoadingBlock
 import nl.fietsweer.app.ui.components.PrecipTempChart
 import nl.fietsweer.app.ui.components.RainSparkline
-import nl.fietsweer.app.ui.components.RiskRing
 import nl.fietsweer.app.ui.components.SectionCard
-import nl.fietsweer.app.ui.components.WindDial
 import nl.fietsweer.app.ui.theme.AppTheme
 import kotlin.math.abs
 
@@ -107,9 +104,10 @@ fun TodayScreen(
     val fc = ui.forecast
     val engine = remember(fc, settings) { fc?.let { Engine(it, settings) } }
     // Each leg drops off this screen once its slack has run out, so after the
-    // morning ride the card on show is already tomorrow's.
+    // morning ride the card on show is already tomorrow's — or, on a Friday,
+    // Monday's: only days some alert fires on count as riding days.
     val planned = remember(settings, nowTick) {
-        Commute.plannedRides(settings, Coverage.BOTH, nowTick)
+        Commute.plannedRides(settings, Coverage.BOTH, nowTick, alertDaysOnly = true)
     }
     val rides = remember(engine, planned) {
         engine?.let { e -> planned.map { e.assess(it.departureMs, it.leg) } }.orEmpty()
@@ -191,8 +189,10 @@ fun TodayScreen(
 
         item {
             val points = remember(fc, nowTick) { buildChartPoints(fc, nowTick) }
-            val bands = remember(rides) {
-                rides.map {
+            // A Monday ride seen on Friday lies past the chart's edge.
+            val charted = rides.filter { it.departureMs < nowTick + 24 * 60 * 60 * 1000L }
+            val bands = remember(charted) {
+                charted.map {
                     ChartBand(
                         it.departureMs, it.arrivalMs,
                         if (it.leg == Leg.OUTBOUND) accents.rain else accents.warm,
@@ -206,7 +206,7 @@ fun TodayScreen(
                 ChipFlow {
                     LegendDot(t.precipitation, accents.rain)
                     LegendDot(t.temperature, MaterialTheme.colorScheme.tertiary)
-                    rides.forEach {
+                    charted.forEach {
                         LegendDot(
                             legendName(it, fmt.isToday(it.departureMs)),
                             if (it.leg == Leg.OUTBOUND) accents.rain else accents.warm
@@ -281,22 +281,16 @@ private fun HeroCard(advice: Advice, current: Map<String, Double>) {
                     Icon(
                         if (advice.anythingNeeded) Icons.Rounded.Checkroom else Icons.AutoMirrored.Rounded.DirectionsBike,
                         null,
-                        tint = Color.White.copy(alpha = 0.85f),
-                        modifier = Modifier.size(18.dp)
+                        tint = Color.White,
+                        modifier = Modifier.size(30.dp)
                     )
-                    Spacer(Modifier.width(8.dp))
+                    Spacer(Modifier.width(10.dp))
                     Text(
-                        (if (advice.anythingNeeded) t.takeWithYou else t.nothingNeeded).uppercase(),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.White.copy(alpha = 0.85f)
+                        AdviceText.headline(advice, t),
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = Color.White
                     )
                 }
-                Spacer(Modifier.height(10.dp))
-                Text(
-                    AdviceText.headline(advice, t),
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = Color.White
-                )
                 if (!advice.anythingNeeded && advice.temperatureKnown) {
                     Spacer(Modifier.height(4.dp))
                     Text(
@@ -306,19 +300,23 @@ private fun HeroCard(advice: Advice, current: Map<String, Double>) {
                     )
                 }
                 val chips = AdviceText.chips(advice, t)
-                if (chips.isNotEmpty()) {
+                // What it is doing outside right now sits in the same card, with
+                // what to bring alongside it: the advice and the thermometer
+                // answer one question together.
+                if (hasNow(current)) {
+                    Spacer(Modifier.height(14.dp))
+                    NowStrip(current) {
+                        chips.forEach { (label, strong) ->
+                            HeroChip(label, strong, iconFor(label, t))
+                        }
+                    }
+                } else if (chips.isNotEmpty()) {
                     Spacer(Modifier.height(14.dp))
                     ChipFlow {
                         chips.forEach { (label, strong) ->
                             HeroChip(label, strong, iconFor(label, t))
                         }
                     }
-                }
-                // What it is doing outside right now sits in the same card: the
-                // advice and the thermometer answer one question together.
-                if (hasNow(current)) {
-                    Spacer(Modifier.height(16.dp))
-                    NowStrip(current)
                 }
             }
         }
@@ -371,7 +369,10 @@ private fun hasNow(current: Map<String, Double>): Boolean =
     current["temperature_2m"] != null || current["wind_speed_10m"] != null
 
 @Composable
-private fun NowStrip(current: Map<String, Double>) {
+private fun NowStrip(
+    current: Map<String, Double>,
+    trailing: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit
+) {
     val t = AppTheme.txt
     val fmt = AppTheme.fmt
     val temp = current["temperature_2m"] ?: Double.NaN
@@ -425,6 +426,12 @@ private fun NowStrip(current: Map<String, Double>) {
                     )
                 }
             }
+            // Pills stack on the right, one above the other when there are more.
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+                content = trailing
+            )
         }
     }
 }
@@ -478,64 +485,54 @@ private fun RideCard(r: RideAssessment, engine: Engine?, onOpen: () -> Unit) {
     val riskColor = accents.forRisk(r.risk)
     val today = fmt.isToday(r.departureMs)
 
+    // Kept low on purpose: with two rides, the hero and the chart on one
+    // screen, every card that grows pushes the rest out of sight.
     SectionCard(
         modifier = Modifier.clickable(onClick = onOpen),
+        contentPadding = 14,
         border = if (today) null
         else BorderStroke(1.dp, MaterialTheme.colorScheme.tertiary.copy(alpha = 0.45f))
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                LegHeader(r.leg, r.departureMs)
-                Spacer(Modifier.height(4.dp))
+        LegHeader(r.leg, r.departureMs)
+        Spacer(Modifier.height(2.dp))
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text(
+                "${fmt.time(r.departureMs)} → ${fmt.time(r.arrivalMs)}",
+                style = MaterialTheme.typography.titleLarge
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                "${r.durationMin} min",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 2.dp)
+            )
+            // What the wind adds to (or takes off) the still-air ride.
+            if (abs(r.windMinutes) >= 2) {
+                val slower = r.windMinutes > 0
+                Spacer(Modifier.width(6.dp))
                 Text(
-                    "${fmt.time(r.departureMs)} → ${fmt.time(r.arrivalMs)}",
-                    style = MaterialTheme.typography.headlineSmall
-                )
-                Text(
-                    "${fmt.km(r.distanceKm)} km · ${r.durationMin} min",
+                    "${if (slower) "+" else "−"}${abs(r.windMinutes)} min",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (slower) accents.likelyWet else accents.dry,
+                    modifier = Modifier.padding(bottom = 2.dp)
                 )
-                Spacer(Modifier.height(10.dp))
-                Text(
-                    fmt.riskWord(r.risk),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = riskColor
-                )
-                if (abs(r.windMinutes) >= 2) {
-                    Spacer(Modifier.height(4.dp))
-                    val slower = r.windMinutes > 0
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Rounded.Air, null,
-                            tint = if (slower) accents.likelyWet else accents.dry,
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Spacer(Modifier.width(5.dp))
-                        Text(
-                            t.windTimeLine(
-                                "${if (slower) "+" else "−"}${abs(r.windMinutes)} min",
-                                fmt.windRelationWord(r.windRelation),
-                                fmt.kmh(r.paceKmh),
-                                "${fmt.kmh(Bike.paceFor(r.distanceKm, r.stillAirDurationMin.toDouble()))} " +
-                                    t.speedUnit
-                            ),
-                            style = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.SemiBold,
-                            color = if (slower) accents.likelyWet else accents.dry
-                        )
-                    }
-                }
             }
-            Spacer(Modifier.width(12.dp))
-            RiskRing(r.risk, riskColor, caption = t.chanceOfRain, diameter = 86)
+            Spacer(Modifier.weight(1f))
+            Text(
+                fmt.riskWord(r.risk),
+                style = MaterialTheme.typography.titleSmall,
+                color = riskColor,
+                modifier = Modifier.padding(bottom = 1.dp, start = 8.dp)
+            )
         }
 
-        Spacer(Modifier.height(14.dp))
+        Spacer(Modifier.height(10.dp))
 
         Row(
             Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             MiniStat(
@@ -556,7 +553,13 @@ private fun RideCard(r: RideAssessment, engine: Engine?, onOpen: () -> Unit) {
                 },
                 Modifier.weight(1f)
             )
-            WindDial(r.travelBearing, r.windFromDeg, r.windKmh, diameter = 62)
+            MiniStat(
+                Icons.Rounded.Umbrella,
+                "${r.riskPercent}%",
+                t.chanceOfRainShort,
+                riskColor,
+                Modifier.weight(1f)
+            )
         }
 
         if (engine != null) {
@@ -564,15 +567,15 @@ private fun RideCard(r: RideAssessment, engine: Engine?, onOpen: () -> Unit) {
                 engine.ridePrecipProfile(r.departureMs, r.leg, r.durationMin)
             }
             if (profile.any { it > 0.03 }) {
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(8.dp))
                 Text(
                     "${t.expectedRain}: ${fmt.mm2(r.avgMm)} mm",
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Normal,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Spacer(Modifier.height(4.dp))
-                RainSparkline(profile, accents.rain)
+                Spacer(Modifier.height(2.dp))
+                RainSparkline(profile, accents.rain, height = 20)
             }
         }
     }
@@ -597,13 +600,13 @@ private fun MiniStat(
         }
         Spacer(Modifier.width(8.dp))
         Column {
-            Text(value, style = MaterialTheme.typography.titleSmall)
+            Text(value, style = MaterialTheme.typography.titleSmall, maxLines = 1)
             Text(
                 label,
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Normal,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 2
+                maxLines = 1
             )
         }
     }

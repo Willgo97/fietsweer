@@ -1,5 +1,6 @@
 package nl.fietsweer.app.notify
 
+import nl.fietsweer.app.data.Alert
 import nl.fietsweer.app.data.Coverage
 import nl.fietsweer.app.data.Leg
 import nl.fietsweer.app.data.Settings
@@ -124,5 +125,35 @@ class CommuteTest {
         val planned = Commute.next(s, Leg.OUTBOUND, at(2026, 3, 10, 8, 30))
         assertTrue(!planned.isStale(at(2026, 3, 10, 9, 0)))
         assertTrue(planned.isStale(at(2026, 3, 10, 9, 1)))
+    }
+
+    private val weekdays = s.copy(alerts = listOf(Alert(id = "a", days = setOf(1, 2, 3, 4, 5))))
+
+    @Test
+    fun `after the last ride on Friday the next riding day is Monday`() {
+        // 13 March 2026 is a Friday.
+        val rides = Commute.plannedRides(weekdays, Coverage.BOTH, at(2026, 3, 13, 18, 31), alertDaysOnly = true)
+        assertEquals(LocalDateTime.of(2026, 3, 16, 8, 0), local(rides[0].departureMs))
+        assertEquals(LocalDateTime.of(2026, 3, 16, 17, 30), local(rides[1].departureMs))
+    }
+
+    @Test
+    fun `on Friday afternoon the trip home is today and the next morning is Monday`() {
+        val rides = Commute.plannedRides(weekdays, Coverage.BOTH, at(2026, 3, 13, 12, 0), alertDaysOnly = true)
+        assertEquals(LocalDateTime.of(2026, 3, 13, 17, 30), local(rides[0].departureMs))
+        assertEquals(LocalDateTime.of(2026, 3, 16, 8, 0), local(rides[1].departureMs))
+    }
+
+    @Test
+    fun `disabled alerts do not make a riding day, and none at all means every day`() {
+        val off = s.copy(alerts = listOf(Alert(id = "a", days = setOf(1), enabled = false)))
+        val rides = Commute.plannedRides(off, Coverage.BOTH, at(2026, 3, 13, 18, 31), alertDaysOnly = true)
+        assertEquals(LocalDateTime.of(2026, 3, 14, 8, 0), local(rides[0].departureMs))
+    }
+
+    @Test
+    fun `alerts keep their own rollover without the day filter`() {
+        val rides = Commute.plannedRides(weekdays, Coverage.BOTH, at(2026, 3, 13, 18, 31))
+        assertEquals(LocalDateTime.of(2026, 3, 14, 8, 0), local(rides[0].departureMs))
     }
 }

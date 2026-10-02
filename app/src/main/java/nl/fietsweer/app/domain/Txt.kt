@@ -106,6 +106,8 @@ open class Txt {
     open val feelsLike = "feels like"
     open val onTheBike = "on the bike"
     open val chanceOfRain = "chance of rain"
+    /** Fits the narrow stat column on a ride card. */
+    open val chanceOfRainShort = "rain"
     open val expectedRain = "Expected rain"
     open val wind = "Wind"
     open val gusts = "gusts"
@@ -244,9 +246,6 @@ open class Txt {
         "Headwind slows you down, tailwind carries you, and the arrival times follow."
     open val paceOnRoad = "Pace on the road"
     /** e.g. "+14 min headwind · 13 instead of 19 km/h". */
-    open val windTimeLine = { delta: String, relation: String, pace: String, still: String ->
-        "$delta $relation · $pace instead of $still"
-    }
     open val stillAirShort = "still air"
     open val rideTimeIs = { km: String, min: Int -> "$km km · $min min in still air" }
     open val whatIsWet = "What counts as wet?"
@@ -406,6 +405,7 @@ object NlTxt : Txt() {
     override val feelsLike = "voelt als"
     override val onTheBike = "op de fiets"
     override val chanceOfRain = "kans op nat"
+    override val chanceOfRainShort = "kans nat"
     override val expectedRain = "Verwachte neerslag"
     override val wind = "Wind"
     override val gusts = "vlagen"
@@ -540,9 +540,6 @@ object NlTxt : Txt() {
     override val windAdjustBody =
         "Tegenwind remt je af, meewind duwt je vooruit, en de aankomsttijden lopen mee."
     override val paceOnRoad = "Tempo onderweg"
-    override val windTimeLine = { delta: String, relation: String, pace: String, still: String ->
-        "$delta $relation · $pace i.p.v. $still"
-    }
     override val stillAirShort = "windstil"
     override val rideTimeIs = { km: String, min: Int -> "$km km · $min min bij windstil" }
     override val whatIsWet = "Wat is \"nat\"?"

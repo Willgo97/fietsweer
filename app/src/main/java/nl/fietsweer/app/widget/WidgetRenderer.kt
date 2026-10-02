@@ -36,7 +36,7 @@ object WidgetRenderer {
         val fmt = Fmt(txt)
 
         val engine = Engine(forecast, settings)
-        val rides = Commute.plannedRides(settings, Coverage.BOTH)
+        val rides = Commute.plannedRides(settings, Coverage.BOTH, alertDaysOnly = true)
             .map { (leg, at) -> engine.assess(at, leg) }
         val advice: Advice = Jacket.forRides(rides, settings)
         val chips = AdviceText.chips(advice, txt)

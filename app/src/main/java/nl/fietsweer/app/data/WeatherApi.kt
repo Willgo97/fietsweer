@@ -108,13 +108,13 @@ object WeatherApi {
             "?latitude=$lats&longitude=$lons" +
             "&minutely_15=precipitation" +
             "&models=$ids" +
-            "&forecast_days=2&timeformat=unixtime&timezone=$zoneParam"
+            "&forecast_days=4&timeformat=unixtime&timezone=$zoneParam"
 
         val urlEnsemble = "https://ensemble-api.open-meteo.com/v1/ensemble" +
             "?latitude=${fmt(mid.lat)}&longitude=${fmt(mid.lon)}" +
             "&hourly=precipitation" +
             "&models=icon_d2,ecmwf_ifs025" +
-            "&forecast_days=2&timeformat=unixtime&timezone=$zoneParam"
+            "&forecast_days=4&timeformat=unixtime&timezone=$zoneParam"
 
         val radarWanted = useRadar && inBenelux(mid)
         val urlRadar = "https://gpsgadget.buienradar.nl/data/raintext" +

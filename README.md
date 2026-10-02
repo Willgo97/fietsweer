@@ -40,7 +40,9 @@ app looks for the driest quarter — your own time wins a tie, only a clearly
 better slot pulls you away from it. Once the window has passed, that leg makes
 way for the same ride on the next day, so from the office you are already
 looking at tomorrow morning. Which day a card is about is spelled out on the
-card itself, in the widget and in the notification.
+card itself, in the widget and in the notification. Only days some alert fires
+on count as riding days, so on Friday evening — with alerts on weekdays — the
+next card is Monday's, not Saturday's.
 
 **Widget.** A home screen widget with the headline, what to bring and both
 rides. Add it from Settings with one tap; it resizes from a full 4×2 card down

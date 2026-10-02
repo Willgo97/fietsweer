@@ -34,7 +34,8 @@ object Commute {
     fun plannedRides(
         s: Settings,
         coverage: Coverage,
-        nowMs: Long = System.currentTimeMillis()
+        nowMs: Long = System.currentTimeMillis(),
+        alertDaysOnly: Boolean = false
     ): List<Planned> {
         val legs = when (coverage) {
             Coverage.OUTBOUND -> listOf(Leg.OUTBOUND)
@@ -44,19 +45,38 @@ object Commute {
         // Chronological, so the ride that comes up next is always on top —
         // which after the morning ride means today's trip home before
         // tomorrow's trip to work.
-        return legs.map { next(s, it, nowMs) }.sortedBy { it.departureMs }
+        val days = if (alertDaysOnly) alertDays(s) else ALL_DAYS
+        return legs.map { next(s, it, nowMs, days) }.sortedBy { it.departureMs }
     }
 
+    /**
+     * The days some enabled alert fires on — the days you actually ride. With
+     * no enabled alert at all there is nothing to go on, so every day counts.
+     */
+    fun alertDays(s: Settings): Set<Int> =
+        s.alerts.filter { it.enabled }.flatMap { it.days }.toSet()
+            .filter { it in 1..7 }.toSet().ifEmpty { ALL_DAYS }
+
+    private val ALL_DAYS = (1..7).toSet()
+
     /** The one ride of this leg that is still ahead of us, slack included. */
-    fun next(s: Settings, leg: Leg, nowMs: Long = System.currentTimeMillis()): Planned {
+    fun next(
+        s: Settings,
+        leg: Leg,
+        nowMs: Long = System.currentTimeMillis(),
+        days: Set<Int> = ALL_DAYS
+    ): Planned {
         val zone = ZoneId.systemDefault()
         val today = ZonedDateTime.ofInstant(Instant.ofEpochMilli(nowMs), zone).toLocalDate()
         val late = s.lateMinFor(leg) * 60_000L
 
-        var departure = at(s, leg, today, zone)
         // Rolling the local date rather than adding 24 hours keeps the clock
         // time right across a daylight-saving switch.
-        if (nowMs > departure + late) departure = at(s, leg, today.plusDays(1), zone)
+        var day = today
+        if (nowMs > at(s, leg, day, zone) + late) day = day.plusDays(1)
+        // Skip the days you do not ride; a week ahead always lands on one.
+        repeat(7) { if (day.dayOfWeek.value !in days) day = day.plusDays(1) }
+        val departure = at(s, leg, day, zone)
 
         return Planned(
             leg = leg,

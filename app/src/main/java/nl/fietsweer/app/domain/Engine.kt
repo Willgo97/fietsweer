@@ -217,6 +217,7 @@ class Engine(private val fc: RouteForecast, private val settings: Settings) {
         var mmMax = 0.0
         for (m: ModelSeries in fc.models) {
             var peak = 0.0
+            var any = false
             for (s in samples) {
                 val t = departureMs + s.minute * 60_000L
                 val i = indexAt(fc.modelTimes, t)
@@ -224,15 +225,18 @@ class Engine(private val fc: RouteForecast, private val settings: Settings) {
                 val arr = m.perPoint[s.pointIndex]
                 if (i >= arr.size) continue
                 val v = arr[i]
-                if (!v.isNaN() && v > peak) peak = v
+                if (!v.isNaN()) { any = true; if (v > peak) peak = v }
             }
+            // The short-range models stop after a day or two; one that has
+            // nothing to say about this ride must not be counted as a dry vote.
+            if (!any) continue
             val wet = peak >= settings.wetThreshold
             verdicts += ModelVerdict(m.id, m.label, wet, peak)
             if (wet) wetCount++
             mmSum += peak
             if (peak > mmMax) mmMax = peak
         }
-        val n = fc.models.size
+        val n = verdicts.size
         val modelsWet = if (n == 0) 0.0 else wetCount.toDouble() / n
 
         // 2. ensemble members give a real probability -------------------------
@@ -295,7 +299,7 @@ class Engine(private val fc: RouteForecast, private val settings: Settings) {
         var weightSum = 0.0
         radarRisk?.let { weighted += it * (if (leadMin <= 60) 1.4 else 0.9); weightSum += if (leadMin <= 60) 1.4 else 0.9 }
         ensembleProb?.let { weighted += it * 0.8; weightSum += 0.8 }
-        weighted += modelsWet * 1.0; weightSum += 1.0
+        if (n > 0) { weighted += modelsWet * 1.0; weightSum += 1.0 }
         val risk = if (weightSum == 0.0) modelsWet else weighted / weightSum
 
         // 5. temperature and wind along the ride -------------------------------
