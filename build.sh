@@ -17,7 +17,7 @@ case "${1:-release}" in
     ;;
   install)
     ./gradlew assembleRelease
-    cp -f app/build/outputs/apk/release/app-release.apk ../Fietsweer.apk
+    cp -f app/build/outputs/apk/release/app-release.apk ../uitgaven/Fietsweer.apk
     adb install -r app/build/outputs/apk/release/app-release.apk
     ;;
   clean)
@@ -25,7 +25,7 @@ case "${1:-release}" in
     ;;
   *)
     ./gradlew assembleRelease
-    cp -f app/build/outputs/apk/release/app-release.apk ../Fietsweer.apk
-    ls -lh ../Fietsweer.apk
+    cp -f app/build/outputs/apk/release/app-release.apk ../uitgaven/Fietsweer.apk
+    ls -lh ../uitgaven/Fietsweer.apk
     ;;
 esac
