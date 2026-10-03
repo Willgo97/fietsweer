@@ -57,6 +57,7 @@ import nl.fietsweer.app.notify.Notifier
 import nl.fietsweer.app.ui.components.EmptyState
 import nl.fietsweer.app.ui.components.InfoCard
 import nl.fietsweer.app.ui.components.SectionCard
+import nl.fietsweer.app.ui.components.SubPageHeader
 import nl.fietsweer.app.ui.theme.AppTheme
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
@@ -68,7 +69,8 @@ fun AlertsScreen(
     onEdit: (Alert) -> Unit,
     onToggle: (Alert) -> Unit,
     onNew: () -> Unit,
-    onTest: () -> Unit
+    onTest: () -> Unit,
+    onBack: () -> Unit
 ) {
     val t = AppTheme.txt
     val fmt = AppTheme.fmt
@@ -96,18 +98,17 @@ fun AlertsScreen(
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    t.alertsTitle,
-                    style = MaterialTheme.typography.headlineMedium,
-                    modifier = Modifier.weight(1f)
-                )
-                Button(onClick = onNew, shape = RoundedCornerShape(14.dp)) {
-                    Icon(Icons.Rounded.Add, null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text(t.add)
-                }
-            }
+            SubPageHeader(
+                t.alertsTitle,
+                trailing = {
+                    Button(onClick = onNew, shape = RoundedCornerShape(14.dp)) {
+                        Icon(Icons.Rounded.Add, null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text(t.add)
+                    }
+                },
+                onBack = onBack
+            )
         }
 
         if (!canPost) {

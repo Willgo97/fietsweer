@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Insights
-import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.WbSunny
 import androidx.compose.material3.Icon
@@ -50,6 +49,7 @@ import nl.fietsweer.app.ui.screens.AlertEditorScreen
 import nl.fietsweer.app.ui.screens.AlertsScreen
 import nl.fietsweer.app.ui.screens.ForecastScreen
 import nl.fietsweer.app.ui.screens.OnboardingFlow
+import nl.fietsweer.app.ui.screens.SettingsPage
 import nl.fietsweer.app.ui.screens.SettingsScreen
 import nl.fietsweer.app.ui.screens.TodayScreen
 import nl.fietsweer.app.ui.theme.AppTheme
@@ -67,7 +67,6 @@ private sealed interface Overlay {
 private enum class Tab(val icon: ImageVector) {
     TODAY(Icons.Rounded.WbSunny),
     FORECAST(Icons.Rounded.Insights),
-    ALERTS(Icons.Rounded.Notifications),
     SETTINGS(Icons.Rounded.Settings)
 }
 
@@ -115,6 +114,7 @@ private fun MainShell(
 
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var overlay by remember { mutableStateOf<Overlay>(Overlay.None) }
+    var settingsPage by rememberSaveable { mutableStateOf(SettingsPage.MENU) }
     var nowTick by remember { mutableLongStateOf(System.currentTimeMillis()) }
 
     LaunchedEffect(Unit) {
@@ -130,8 +130,10 @@ private fun MainShell(
         vm.rescheduleAlarms()
     }
 
+    val inSubPage = tab == 2 && settingsPage != SettingsPage.MENU
     BackHandler(enabled = overlay != Overlay.None) { overlay = Overlay.None }
-    BackHandler(enabled = overlay == Overlay.None && tab != 0) { tab = 0 }
+    BackHandler(enabled = overlay == Overlay.None && inSubPage) { settingsPage = SettingsPage.MENU }
+    BackHandler(enabled = overlay == Overlay.None && !inSubPage && tab != 0) { tab = 0 }
 
     Box(Modifier.fillMaxSize()) {
         Scaffold(
@@ -140,14 +142,17 @@ private fun MainShell(
                     Tab.entries.forEachIndexed { index, entry ->
                         NavigationBarItem(
                             selected = tab == index,
-                            onClick = { tab = index },
+                            onClick = {
+                                // Tapping Settings again goes back to its menu.
+                                if (index == 2 && tab == 2) settingsPage = SettingsPage.MENU
+                                tab = index
+                            },
                             icon = { Icon(entry.icon, null) },
                             label = {
                                 Text(
                                     when (entry) {
                                         Tab.TODAY -> t.tabToday
                                         Tab.FORECAST -> t.tabForecast
-                                        Tab.ALERTS -> t.tabAlerts
                                         Tab.SETTINGS -> t.tabSettings
                                     },
                                     style = MaterialTheme.typography.labelSmall
@@ -188,7 +193,7 @@ private fun MainShell(
                         onSetup = { vm.update { s -> s.copy(setupDone = false) } }
                     )
 
-                    2 -> AlertsScreen(
+                    else -> if (settingsPage == SettingsPage.ALERTS) AlertsScreen(
                         settings = settings,
                         contentPadding = inner,
                         onEdit = { overlay = Overlay.EditAlert(it, false) },
@@ -200,10 +205,11 @@ private fun MainShell(
                                     snackbar.showMessage(if (ok) t.done else t.updateFailedTitle)
                                 }
                             }
-                        }
-                    )
-
-                    else -> SettingsScreen(
+                        },
+                        onBack = { settingsPage = SettingsPage.MENU }
+                    ) else SettingsScreen(
+                        page = settingsPage,
+                        onPage = { settingsPage = it },
                         settings = settings,
                         forecast = ui.forecast,
                         versionName = versionName,

@@ -20,7 +20,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.DirectionsBike
 import androidx.compose.material.icons.rounded.Air
+import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.Umbrella
+import androidx.compose.material.icons.rounded.Notifications
+import androidx.compose.material.icons.rounded.Schedule
+import androidx.compose.material.icons.rounded.Place
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.Home
@@ -64,6 +70,7 @@ import nl.fietsweer.app.ui.components.LabeledSlider
 import nl.fietsweer.app.ui.components.SectionCard
 import nl.fietsweer.app.ui.components.SegmentedChoice
 import nl.fietsweer.app.ui.components.SettingRow
+import nl.fietsweer.app.ui.components.SubPageHeader
 import nl.fietsweer.app.ui.components.TimePickerDialog
 import nl.fietsweer.app.ui.map.MapCamera
 import nl.fietsweer.app.ui.map.MapLine
@@ -78,8 +85,13 @@ import kotlin.math.roundToInt
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
 
+/** The menu, and the page each of its rows opens. */
+enum class SettingsPage { MENU, ROUTE, TIMES, ALERTS, RIDING, ADVICE, LOOK, WIDGET, ABOUT }
+
 @Composable
 fun SettingsScreen(
+    page: SettingsPage,
+    onPage: (SettingsPage) -> Unit,
     settings: Settings,
     forecast: nl.fietsweer.app.data.RouteForecast?,
     versionName: String,
@@ -123,11 +135,16 @@ fun SettingsScreen(
         ),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        item { Text(t.tabSettings, style = MaterialTheme.typography.headlineMedium) }
+        if (page == SettingsPage.MENU) {
+            item { Text(t.tabSettings, style = MaterialTheme.typography.headlineMedium) }
+            item { SettingsMenu(onPage) }
+        } else {
+            item { SubPageHeader(pageTitle(page)) { onPage(SettingsPage.MENU) } }
+        }
 
         // ----------------------------------------------------------- route
-        item {
-            SectionCard(title = t.settingsRoute) {
+        if (page == SettingsPage.ROUTE) item {
+            SectionCard {
                 if (settings.home != null && settings.work != null) {
                     RoutePreview(settings, mapTheme)
                     Spacer(Modifier.height(12.dp))
@@ -157,8 +174,8 @@ fun SettingsScreen(
         }
 
         // ------------------------------------------------------------ times
-        item {
-            SectionCard(title = t.settingsTimes) {
+        if (page == SettingsPage.TIMES) item {
+            SectionCard {
                 Row(
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -186,18 +203,12 @@ fun SettingsScreen(
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
                 Spacer(Modifier.height(14.dp))
                 FlexEditor(Leg.RETURN, settings, onUpdate)
-                Spacer(Modifier.height(10.dp))
-                Text(
-                    t.flexBody,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
             }
         }
 
         // ----------------------------------------------------------- riding
-        item {
-            SectionCard(title = t.settingsRiding) {
+        if (page == SettingsPage.RIDING) item {
+            SectionCard {
                 LabeledSlider(
                     label = t.cyclingSpeed,
                     valueText = t.rideTimeIs(
@@ -210,9 +221,8 @@ fun SettingsScreen(
                     onChange = { speed = it },
                     onChangeFinished = { onUpdate { s -> s.copy(speedKmh = speed.roundToInt()) } }
                 )
-                Spacer(Modifier.height(4.dp))
                 Text(
-                    "${speed.roundToInt()} ${t.speedUnit} · ${t.cyclingSpeedBody}",
+                    "${speed.roundToInt()} ${t.speedUnit}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -220,7 +230,6 @@ fun SettingsScreen(
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
                 SettingRow(
                     title = t.windAdjust,
-                    subtitle = t.windAdjustBody,
                     icon = Icons.Rounded.Air,
                     trailing = {
                         Switch(
@@ -233,8 +242,8 @@ fun SettingsScreen(
         }
 
         // ----------------------------------------------------------- advice
-        item {
-            SectionCard(title = t.settingsAdvice) {
+        if (page == SettingsPage.ADVICE) item {
+            SectionCard {
                 Text(t.whatIsWet, style = MaterialTheme.typography.bodyMedium)
                 Spacer(Modifier.height(8.dp))
                 SegmentedChoice(
@@ -296,17 +305,10 @@ fun SettingsScreen(
                         }
                     }
                 )
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    t.layerLadder(fmt.temp(vestTemp.toDouble()), fmt.temp(winterTemp.toDouble())),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
                 Spacer(Modifier.height(8.dp))
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
                 SettingRow(
                     title = t.useRadarTitle,
-                    subtitle = t.useRadarBody,
                     icon = Icons.Rounded.Radar,
                     trailing = {
                         Switch(
@@ -319,8 +321,8 @@ fun SettingsScreen(
         }
 
         // --------------------------------------------------------- appearance
-        item {
-            SectionCard(title = t.settingsLook) {
+        if (page == SettingsPage.LOOK) item {
+            SectionCard {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         Icons.Rounded.DarkMode, null,
@@ -401,9 +403,9 @@ fun SettingsScreen(
         }
 
         // ----------------------------------------------------------- widget
-        item {
+        if (page == SettingsPage.WIDGET) item {
             val context = LocalContext.current
-            SectionCard(title = t.settingsWidget) {
+            SectionCard {
                 val snapshot = remember(settings, forecast) {
                     WidgetRenderer.snapshotFor(settings, forecast)
                 }
@@ -414,12 +416,6 @@ fun SettingsScreen(
                 WidgetPreview(t.widgetSizeSlim, 64) {
                     WidgetRenderer.single(it, settings, snapshot, compact = true)
                 }
-                Spacer(Modifier.height(10.dp))
-                Text(
-                    t.widgetResizeHint,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
                 Spacer(Modifier.height(12.dp))
                 FilledTonalButton(
                     onClick = {
@@ -440,8 +436,8 @@ fun SettingsScreen(
         }
 
         // ------------------------------------------------------------ about
-        item {
-            SectionCard(title = t.settingsAbout) {
+        if (page == SettingsPage.ABOUT) item {
+            SectionCard {
                 Text(t.aboutBody, style = MaterialTheme.typography.bodyMedium)
                 Spacer(Modifier.height(10.dp))
                 Text(
@@ -486,6 +482,55 @@ fun SettingsScreen(
                 editingReturn = false
             }
         )
+    }
+}
+
+@Composable
+private fun pageTitle(page: SettingsPage): String {
+    val t = AppTheme.txt
+    return when (page) {
+        SettingsPage.MENU -> t.tabSettings
+        SettingsPage.ROUTE -> t.settingsRoute
+        SettingsPage.TIMES -> t.settingsTimes
+        SettingsPage.ALERTS -> t.tabAlerts
+        SettingsPage.RIDING -> t.settingsRiding
+        SettingsPage.ADVICE -> t.settingsAdvice
+        SettingsPage.LOOK -> t.settingsLook
+        SettingsPage.WIDGET -> t.settingsWidget
+        SettingsPage.ABOUT -> t.settingsAbout
+    }
+}
+
+/** One short row per page: an icon, a word, a chevron. */
+@Composable
+private fun SettingsMenu(onPage: (SettingsPage) -> Unit) {
+    val rows = listOf(
+        SettingsPage.ROUTE to Icons.Rounded.Place,
+        SettingsPage.TIMES to Icons.Rounded.Schedule,
+        SettingsPage.ALERTS to Icons.Rounded.Notifications,
+        SettingsPage.RIDING to Icons.AutoMirrored.Rounded.DirectionsBike,
+        SettingsPage.ADVICE to Icons.Rounded.Umbrella,
+        SettingsPage.LOOK to Icons.Rounded.Palette,
+        SettingsPage.WIDGET to Icons.Rounded.Widgets,
+        SettingsPage.ABOUT to Icons.Rounded.Info
+    )
+    SectionCard(contentPadding = 6) {
+        rows.forEachIndexed { i, (page, icon) ->
+            if (i > 0) {
+                HorizontalDivider(
+                    Modifier.padding(start = 48.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                )
+            }
+            Box(Modifier.padding(horizontal = 10.dp)) {
+                SettingRow(
+                    title = pageTitle(page),
+                    icon = icon,
+                    trailing = { Icon(Icons.Rounded.ChevronRight, null) },
+                    onClick = { onPage(page) }
+                )
+            }
+        }
     }
 }
 

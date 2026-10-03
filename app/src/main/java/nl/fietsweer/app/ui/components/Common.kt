@@ -41,6 +41,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import nl.fietsweer.app.ui.theme.AppTheme
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
 
@@ -404,5 +405,29 @@ fun EmptyState(
             Spacer(Modifier.height(18.dp))
             FilledTonalButton(onClick = onAction) { Text(actionLabel) }
         }
+    }
+}
+
+/** A back arrow and the page title, at the top of a settings page. */
+@Composable
+fun SubPageHeader(
+    title: String,
+    trailing: (@Composable () -> Unit)? = null,
+    onBack: () -> Unit
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        androidx.compose.material3.IconButton(onClick = onBack) {
+            Icon(
+                androidx.compose.material.icons.Icons.AutoMirrored.Rounded.ArrowBack,
+                AppTheme.txt.back
+            )
+        }
+        Spacer(Modifier.width(4.dp))
+        Text(
+            title,
+            style = MaterialTheme.typography.headlineSmall,
+            modifier = Modifier.weight(1f)
+        )
+        trailing?.invoke()
     }
 }
