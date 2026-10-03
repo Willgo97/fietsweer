@@ -102,7 +102,6 @@ fun ChipFlow(
     )
 }
 
-// Hand-rolled so it stays small on narrow screens.
 @Composable
 fun <T> SegmentedChoice(
     options: List<Pair<T, String>>,

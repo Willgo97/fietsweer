@@ -15,7 +15,6 @@ data class Place(
 
 enum class Leg { OUTBOUND, RETURN }
 
-/** Which of the day's two rides an alert reports on. */
 enum class Coverage { OUTBOUND, RETURN, BOTH }
 
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
@@ -30,8 +29,7 @@ data class Alert(
     val label: String = "",
     val hour: Int = 7,
     val minute: Int = 15,
-    /** ISO day numbers, Monday = 1 … Sunday = 7. */
-    val days: Set<Int> = setOf(1, 2, 3, 4, 5),
+    val days: Set<Int> = setOf(1, 2, 3, 4, 5), // ISO: Monday = 1
     val coverage: Coverage = Coverage.BOTH,
     val enabled: Boolean = true,
     val onlyWhenNeeded: Boolean = false
@@ -49,19 +47,15 @@ data class Settings(
     val returnHour: Int = 17,
     val returnMinute: Int = 30,
 
-    // Slack around a planned departure; the late end is also how long Today keeps showing the ride.
     val outboundEarlyMin: Int = 0,
     val outboundLateMin: Int = 60,
     val returnEarlyMin: Int = 60,
     val returnLateMin: Int = 60,
 
-    /** In still air; the wind is applied on top. */
     val speedKmh: Int = 19,
     val windAdjustSpeed: Boolean = true,
-    /** mm per 15 minutes. */
-    val wetThreshold: Double = 0.2,
+    val wetThreshold: Double = 0.2, // mm per 15 min
     val rainJacketPercent: Int = 30,
-    /** Bike-feel temperatures. */
     val vestBelow: Double = 17.0,
     val winterCoatBelow: Double = 6.0,
 
@@ -90,5 +84,4 @@ data class Settings(
 
 const val FLEX_MAX_MIN = 180
 
-/** Centre of the Netherlands, until the user picks a place. */
 val LatLonFallback = LatLon(52.1326, 5.2913)

@@ -34,11 +34,9 @@ object Jacket {
             maxRiskPct >= threshold * 0.5 -> Need.MAYBE
             else -> Need.NO
         }
-        // A small chance of a proper downpour still means taking the jacket.
         if (rain == Need.MAYBE && maxMm >= 1.5) rain = Need.YES
 
         val withConditions = rides.filter { it.hasConditions }
-        // The coldest moment decides, not the average.
         val coldest = withConditions.minOfOrNull { it.minBikeFeelC }
         val layer = when {
             coldest == null -> Layer.SHORT_SLEEVES

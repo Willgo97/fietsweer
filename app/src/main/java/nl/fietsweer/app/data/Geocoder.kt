@@ -5,7 +5,6 @@ import nl.fietsweer.app.domain.LatLon
 import org.json.JSONObject
 import java.net.URLEncoder
 
-// Forward search via Open-Meteo; reverse via Nominatim, only once the map stops moving (rate limits).
 object Geocoder {
 
     suspend fun search(query: String, near: LatLon?, language: String): List<Place> {

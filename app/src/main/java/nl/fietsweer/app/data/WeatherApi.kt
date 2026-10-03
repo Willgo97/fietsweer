@@ -24,7 +24,6 @@ class ModelSeries(
 
 data class RadarSample(val timeMs: Long, val mmPerHour: Double)
 
-// The same route points serve both legs, walked forwards or backwards.
 class RouteForecast(
     val home: Place,
     val work: Place,
@@ -62,7 +61,6 @@ object WeatherApi {
 
     private const val SAMPLE_POINTS = 4
 
-    // Unavailable models simply drop out.
     val MODELS: List<Pair<String, String>> = listOf(
         "knmi_harmonie_arome_netherlands" to "KNMI Harmonie 2 km",
         "knmi_seamless" to "KNMI seamless",
@@ -186,7 +184,6 @@ object WeatherApi {
             sources += SourceStatus("Open-Meteo · temperature & wind", SourceState.FAILED, it.shortMessage())
         }
 
-        // Buienradar nowcast, 0-2 h
         val radar = mutableListOf<RadarSample>()
         val radarResult = dRadar.await()
         if (radarResult == null) {
@@ -277,7 +274,7 @@ object WeatherApi {
         )
     }
 
-    // Lines like `000|16:50`: 0-255 on a log scale, Dutch local time, rolling past midnight.
+    // Lines like `000|16:50`: 0-255 log scale, Dutch local time, rolls past midnight.
     fun parseRadar(text: String): List<RadarSample> {
         val zone = ZoneId.of("Europe/Amsterdam")
         val now = ZonedDateTime.now(zone)
@@ -300,7 +297,6 @@ object WeatherApi {
         return out
     }
 
-    // Buienradar covers only NL, BE and the German border.
     fun inBenelux(p: LatLon): Boolean =
         p.lat in 48.5..55.5 && p.lon in 1.5..9.5
 
@@ -315,7 +311,6 @@ object WeatherApi {
     private fun JSONArray.toDoubles(): DoubleArray =
         DoubleArray(length()) { if (isNull(it)) Double.NaN else optDouble(it, Double.NaN) }
 
-    // Skips `time`; daily sunrise/sunset are unix seconds too.
     private fun JSONObject.toSeriesMap(includeTimeLike: Boolean = false): Map<String, DoubleArray> {
         val out = LinkedHashMap<String, DoubleArray>()
         for (k in keys()) {

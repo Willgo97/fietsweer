@@ -3,12 +3,10 @@ package nl.fietsweer.app.domain
 import nl.fietsweer.app.data.Lang
 import java.util.Locale
 
-// All copy lives here, not in strings.xml: type-safe sentences and an in-app language switch without recreating the activity.
 open class Txt {
 
     open val locale: Locale = Locale.ENGLISH
 
-    // General
     open val appName = "Fietsweer"
     open val tagline = "Which jacket do you need today?"
     open val back = "Back"
@@ -30,13 +28,11 @@ open class Txt {
     open val change = "Change"
     open val loading = "Loading…"
 
-    // Tabs
     open val tabToday = "Today"
     open val tabForecast = "Forecast"
     open val tabAlerts = "Alerts"
     open val tabSettings = "Settings"
 
-    // Onboarding
     open val welcomeTitle = "Fietsweer"
     open val welcomeBody =
         "Set your home and work once. After that this app tells you every " +
@@ -62,7 +58,6 @@ open class Txt {
     open val finishBody = "Fetching the first forecast…"
     open val finishGo = "Open Fietsweer"
 
-    // Map picker
     open val searchPlace = "Search for a place"
     open val searchNoResults = "Nothing found"
     open val useMyLocation = "Use my location"
@@ -71,7 +66,6 @@ open class Txt {
     open val confirmLocation = "Use this spot"
     open val dragMapHint = "Drag the map to place the pin"
 
-    // Today
     open val toWork = "To work"
     open val toHome = "Back home"
     open val takeWithYou = "Take with you"
@@ -102,7 +96,6 @@ open class Txt {
     open val feelsLike = "feels like"
     open val onTheBike = "on the bike"
     open val chanceOfRain = "chance of rain"
-    /** Fits the narrow stat column on a ride card. */
     open val chanceOfRainShort = "rain"
     open val expectedRain = "Expected rain"
     open val wind = "Wind"
@@ -135,7 +128,6 @@ open class Txt {
     open val setupNeededTitle = "Set your route first"
     open val setupNeededBody = "Pick a home and a work location to get started."
 
-    // Forecast
     open val departureTimeline = "Departure times, next 24 hours"
     open val dryWindows = "Dry windows"
     open val noDryWindows = "No uninterrupted dry window in the next 24 hours."
@@ -177,7 +169,6 @@ open class Txt {
     open val riskLikelyWet = "Good chance of getting wet"
     open val riskWet = "You will get wet"
 
-    // Alerts
     open val alertsTitle = "Alerts"
     open val alertsEmpty = "No notifications yet"
     open val alertsEmptyBody = "Add a moment and we will tell you what to bring."
@@ -209,7 +200,6 @@ open class Txt {
     open val grant = "Fix this"
     open val deleteAlertConfirm = "Delete this notification?"
 
-    // Settings
     open val settingsRoute = "Route"
     open val settingsTimes = "Ride times"
     open val settingsRiding = "Riding"
@@ -241,7 +231,6 @@ open class Txt {
     open val windAdjustBody =
         "Headwind slows you down, tailwind carries you, and the arrival times follow."
     open val paceOnRoad = "Pace on the road"
-    /** e.g. "+14 min headwind · 13 instead of 19 km/h". */
     open val stillAirShort = "still air"
     open val rideTimeIs = { km: String, min: Int -> "$km km · $min min in still air" }
     open val whatIsWet = "What counts as wet?"
@@ -280,7 +269,6 @@ open class Txt {
     open val version = { v: String -> "Version $v" }
     open val resetSetup = "Run setup again"
 
-    // Notification
     open val notifChannelName = "Commute advice"
     open val notifChannelBody = "Tells you which jacket to bring before you leave."
     open val notifNothing = "Nothing to bring"
@@ -291,7 +279,6 @@ open class Txt {
     open val notifOpen = "Open"
     open val notifNoData = "Could not fetch the forecast"
 
-    // Formatting
     open val speedUnit = "km/h"
     open val minutesShort = { m: Int -> "$m min" }
     open val hoursShort = { h: String -> "$h h" }

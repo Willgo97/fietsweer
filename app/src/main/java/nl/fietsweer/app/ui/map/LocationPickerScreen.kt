@@ -106,7 +106,7 @@ fun LocationPickerScreen(
 
     var searchJob by remember { mutableStateOf<Job?>(null) }
 
-    // Keyed on the drag counter: every new drag cancels the pending lookup, a free debounce.
+    // Restarts on every drag: a debounce, as Nominatim is rate limited.
     LaunchedEffect(dragTick) {
         if (dragTick == 0) return@LaunchedEffect
         resolving = true
@@ -143,7 +143,6 @@ fun LocationPickerScreen(
             }
         )
 
-        // Overlay, so the pin never lags behind the gesture.
         Box(
             Modifier
                 .align(Alignment.Center)

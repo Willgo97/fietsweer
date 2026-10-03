@@ -16,7 +16,6 @@ object Geo {
     private const val EARTH_R_KM = 6371.0088
     private const val RAD = PI / 180.0
 
-    // Cycling routes are longer than the crow flies; a decent Dutch average.
     const val DETOUR_FACTOR = 1.25
 
     fun haversineKm(a: LatLon, b: LatLon): Double {
@@ -27,7 +26,6 @@ object Geo {
         return 2 * EARTH_R_KM * asin(sqrt(h.coerceIn(0.0, 1.0)))
     }
 
-    /** 0 = north. */
     fun bearingDeg(a: LatLon, b: LatLon): Double {
         val y = sin((b.lon - a.lon) * RAD) * cos(b.lat * RAD)
         val x = cos(a.lat * RAD) * sin(b.lat * RAD) -
@@ -35,7 +33,6 @@ object Geo {
         return (atan2(y, x) / RAD + 360.0) % 360.0
     }
 
-    /** 0..180. */
     fun angleDiff(a: Double, b: Double): Double {
         var d = abs(a - b) % 360.0
         if (d > 180) d = 360 - d

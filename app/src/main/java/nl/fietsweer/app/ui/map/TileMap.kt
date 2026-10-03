@@ -58,7 +58,6 @@ enum class TileSource(
     val maxZoom: Int,
     val attribution: String
 ) {
-    // Free, no key, but needs a real User-Agent.
     OSM(
         "osm", "https://tile.openstreetmap.org/{z}/{x}/{y}.png", 19,
         "\u00a9 OpenStreetMap contributors"
@@ -73,7 +72,6 @@ enum class TileSource(
         template.replace("{z}", z.toString()).replace("{x}", x.toString()).replace("{y}", y.toString())
 }
 
-// Dark basemap from the light tiles: invert, rotate the hue back, dim a little.
 private val DARK_TILE_FILTER: ColorFilter = ColorFilter.colorMatrix(
     ColorMatrix(
         floatArrayOf(
@@ -85,7 +83,6 @@ private val DARK_TILE_FILTER: ColorFilter = ColorFilter.colorMatrix(
     )
 )
 
-// Bitmaps in memory, PNGs on disk; duplicate requests are merged.
 object TileLoader {
 
     private const val MAX_MEMORY_TILES = 220
@@ -190,7 +187,6 @@ fun TileMap(
     var version by remember { mutableIntStateOf(0) }
     val bump = remember { { version++; Unit } }
 
-    // Retina tiles at up to 2x so the map is not microscopic on dense screens.
     val tileScale = density.coerceIn(1f, 2f)
     val baseTile = 256f * tileScale
 
@@ -216,7 +212,6 @@ fun TileMap(
                                 val worldNew = baseTile * 2f.pow(newZoom)
                                 val cx = size.width / 2f
                                 val cy = size.height / 2f
-                                // keep the point under the fingers still
                                 val pointNx = nx + (centroid.x - cx) / world
                                 val pointNy = ny + (centroid.y - cy) / world
                                 nx = pointNx - (centroid.x - cx) / worldNew

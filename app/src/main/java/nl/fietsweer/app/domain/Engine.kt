@@ -34,7 +34,6 @@ data class RideAssessment(
     val perModel: List<ModelVerdict>,
     val avgMm: Double,
     val maxMm: Double,
-    /** 0 = models split, 1 = unanimous. */
     val agreement: Double,
     val night: Boolean,
 
@@ -81,7 +80,7 @@ class Engine(private val fc: RouteForecast, private val settings: Settings) {
 
         fun minutesToDuration(minutes: Double): Int = minutes.roundToInt().coerceIn(3, 360)
 
-        // JAG/TI wind chill; undefined below 4.8 km/h.
+        // JAG/TI wind chill, undefined below 4.8 km/h.
         fun windChill(tempC: Double, windKmh: Double): Double {
             if (windKmh < 4.8) return tempC
             val f = windKmh.pow(0.16)
@@ -107,7 +106,6 @@ class Engine(private val fc: RouteForecast, private val settings: Settings) {
             out += Sample(m, idx)
             m += STEP_MIN
         }
-        // Always include the final stretch.
         if (out.isEmpty() || out.last().minute < durationMin) {
             val idx = if (leg == Leg.RETURN) 0 else npoints - 1
             out += Sample(durationMin, idx)
@@ -115,7 +113,6 @@ class Engine(private val fc: RouteForecast, private val settings: Settings) {
         return out
     }
 
-    /** Newest index at or before [t], or -1. */
     private fun indexAt(times: LongArray, t: Long): Int {
         if (times.isEmpty() || t < times[0]) return -1
         var lo = 0
@@ -134,7 +131,6 @@ class Engine(private val fc: RouteForecast, private val settings: Settings) {
         return a[i]
     }
 
-    /** Mean (head, cross) wind at bike height over the ride. */
     private fun windOver(departureMs: Long, minutes: Int, bearing: Double): Pair<Double, Double>? {
         var headSum = 0.0
         var crossSum = 0.0
@@ -156,7 +152,6 @@ class Engine(private val fc: RouteForecast, private val settings: Settings) {
         return if (count == 0) null else (headSum / count) to (crossSum / count)
     }
 
-    // The wind depends on how long the ride takes and vice versa, so refine once.
     private fun durationFor(departureMs: Long, bearing: Double): Int {
         if (!settings.windAdjustSpeed) return stillAirDurationMin
         var minutes = stillAirDurationMin
@@ -223,8 +218,7 @@ class Engine(private val fc: RouteForecast, private val settings: Settings) {
                     }
                     if (!any) continue
                     total++
-                    // Hourly totals, while the threshold is per quarter hour.
-                    if (peak >= settings.wetThreshold * 2) hit++
+                    if (peak >= settings.wetThreshold * 2) hit++ // hourly peak vs per-quarter threshold
                 }
                 if (total > 0) ensembleProb = hit.toDouble() / total
             }
@@ -246,7 +240,7 @@ class Engine(private val fc: RouteForecast, private val settings: Settings) {
                 if (best != null && bestDelta <= 600_000L) {
                     covered++
                     if (best > radarMax) radarMax = best
-                    if (best / 4.0 >= settings.wetThreshold) hits++ // mm/h vs. per-quarter threshold
+                    if (best / 4.0 >= settings.wetThreshold) hits++ // mm/h vs per-quarter threshold
                 }
             }
             if (covered >= Math.ceil(samples.size * 0.6).toInt()) {
@@ -254,7 +248,6 @@ class Engine(private val fc: RouteForecast, private val settings: Settings) {
             }
         }
 
-        // Radar rules the next hour, models the rest.
         val leadMin = (departureMs - System.currentTimeMillis()) / 60_000.0
         var weighted = 0.0
         var weightSum = 0.0
@@ -344,7 +337,6 @@ class Engine(private val fc: RouteForecast, private val settings: Settings) {
         return value(fc.hourly, fc.hourTimes, key, t)
     }
 
-    // Adds the chill of the rider's own airspeed on top of Open-Meteo's apparent temperature.
     fun bikeFeel(
         tempC: Double,
         apparentC: Double,
@@ -363,7 +355,7 @@ class Engine(private val fc: RouteForecast, private val settings: Settings) {
         return apparentC - extra
     }
 
-    /** Positive = headwind in km/h, negative = tailwind. */
+    // Positive = headwind km/h, negative = tailwind.
     fun headwindComponent(wind10Kmh: Double, windFromDeg: Double, travelBearing: Double): Double {
         val rel = Math.toRadians(Geo.angleDiff(windFromDeg, travelBearing))
         return wind10Kmh * cos(rel)
@@ -372,7 +364,6 @@ class Engine(private val fc: RouteForecast, private val settings: Settings) {
     fun scan(leg: Leg, horizonMin: Int = 24 * 60, fromMs: Long = System.currentTimeMillis()): List<RideAssessment> {
         if (!fc.hasModels) return emptyList()
         val out = ArrayList<RideAssessment>()
-        // Leave room for a headwind doubling the ride.
         val need = Math.ceil(stillAirDurationMin * 2.0 / GRID_MIN).toInt() + 1
         val last = fc.modelTimes.size - need
         for (i in 0 until last) {
@@ -432,7 +423,6 @@ class Engine(private val fc: RouteForecast, private val settings: Settings) {
         }
         return raw.map { group ->
             val minutes = group.size * GRID_MIN
-            // Earliest slot wins unless a later one is clearly better.
             val best = group.reduce { a, b -> if (b.risk < a.risk - 0.05) b else a }
             val avg = group.sumOf { it.risk } / group.size
             val leadHours = (group.first().departureMs - System.currentTimeMillis()) / 3_600_000.0

@@ -273,7 +273,6 @@ fun SettingsScreen(
                     onChange = { vestTemp = it },
                     onChangeFinished = {
                         onUpdate {
-                            // The ladder only makes sense in order.
                             val vest = vestTemp.toDouble()
                             it.copy(
                                 vestBelow = vest,

@@ -17,7 +17,6 @@ class CommuteTest {
 
     private val zone: ZoneId = ZoneId.of("Europe/Amsterdam")
 
-    /** Leaves home at 08:00 and work at 17:30, both with an hour of slack. */
     private val s = Settings(
         outboundHour = 8, outboundMinute = 0,
         returnHour = 17, returnMinute = 30,
@@ -53,7 +52,6 @@ class CommuteTest {
     @Test
     fun `past the slack the morning ride becomes tomorrow and sorts last`() {
         val rides = Commute.plannedRides(s, Coverage.BOTH, at(2026, 3, 10, 9, 1))
-        // Chronological: today's ride home comes before tomorrow's ride to work.
         assertEquals(listOf(Leg.RETURN, Leg.OUTBOUND), rides.map { it.leg })
         assertEquals(LocalDateTime.of(2026, 3, 10, 17, 30), local(rides[0].departureMs))
         assertEquals(LocalDateTime.of(2026, 3, 11, 8, 0), local(rides[1].departureMs))
@@ -102,8 +100,7 @@ class CommuteTest {
 
     @Test
     fun `rolling into a daylight-saving switch keeps the clock time`() {
-        // Night of 25 to 26 October 2025 the Dutch clocks go back an hour, so
-        // the day is 25 hours long; adding 24 hours of millis would land at 07:00.
+        // 25-26 Oct 2025 the clocks go back: the day is 25 hours long.
         val next = Commute.next(s, Leg.OUTBOUND, at(2025, 10, 25, 9, 30))
         assertEquals(LocalDateTime.of(2025, 10, 26, 8, 0), local(next.departureMs))
     }
@@ -126,7 +123,6 @@ class CommuteTest {
 
     @Test
     fun `after the last ride on Friday the next riding day is Monday`() {
-        // 13 March 2026 is a Friday.
         val rides = Commute.plannedRides(weekdays, Coverage.BOTH, at(2026, 3, 13, 18, 31), alertDaysOnly = true)
         assertEquals(LocalDateTime.of(2026, 3, 16, 8, 0), local(rides[0].departureMs))
         assertEquals(LocalDateTime.of(2026, 3, 16, 17, 30), local(rides[1].departureMs))

@@ -12,7 +12,6 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
 
-// Remembers every id it scheduled, so deleted alerts can still be cancelled.
 object AlertScheduler {
 
     private const val TAG = "AlertScheduler"
@@ -27,7 +26,6 @@ object AlertScheduler {
         return am.canScheduleExactAlarms()
     }
 
-    /** Null when no day is selected. */
     fun nextTrigger(alert: Alert, fromMs: Long = System.currentTimeMillis()): Long? {
         if (!alert.enabled || alert.days.isEmpty()) return null
         val zone = ZoneId.systemDefault()
@@ -48,7 +46,6 @@ object AlertScheduler {
         val am = ctx.getSystemService(AlarmManager::class.java) ?: return
         val book = ctx.getSharedPreferences(BOOK, Context.MODE_PRIVATE)
 
-        // Cancel everything we scheduled before, including deleted alerts.
         for (id in book.getStringSet(KEY_IDS, emptySet()).orEmpty()) {
             am.cancel(pendingIntent(ctx, id, PendingIntent.FLAG_NO_CREATE) ?: continue)
         }
@@ -83,7 +80,6 @@ object AlertScheduler {
             if (canScheduleExact(context)) {
                 am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, atMs, pi)
             } else {
-                // Inexact, but still wakes the device.
                 am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, atMs, pi)
             }
         } catch (se: SecurityException) {

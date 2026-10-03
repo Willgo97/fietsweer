@@ -4,7 +4,6 @@ import nl.fietsweer.app.data.Leg
 
 object AdviceText {
 
-    // Rain and warmth are independent, so name whichever combination applies.
     fun headline(a: Advice, t: Txt): String = when (a.rain) {
         Need.YES -> when (a.layer) {
             Layer.WINTER -> t.adviceRainWinter
@@ -48,7 +47,6 @@ object AdviceText {
 
     fun legName(leg: Leg, t: Txt): String = if (leg == Leg.OUTBOUND) t.toWork else t.toHome
 
-    // Spells out the day when it is not today: a rolled-over leg is about tomorrow.
     fun moment(r: RideAssessment, f: Fmt): String =
         if (f.isToday(r.departureMs)) f.time(r.departureMs) else f.dayTime(r.departureMs)
 

@@ -93,7 +93,6 @@ private val BrandDark = darkColorScheme(
     inverseOnSurface = Color(0xFF2C3134)
 )
 
-/** Colours that carry meaning: risk levels and garments. */
 data class Accents(
     val dry: Color,
     val mostlyDry: Color,

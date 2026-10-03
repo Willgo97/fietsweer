@@ -2,8 +2,6 @@ package nl.fietsweer.app.widget
 
 import android.content.Context
 
-// The forecast only lives in memory. Persisting what the widget drew lets it redraw
-// after process death without flickering through the "could not fetch" layout.
 data class WidgetSnapshot(
     val headline: String,
     val chips: String,

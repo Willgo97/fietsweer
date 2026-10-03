@@ -17,7 +17,6 @@ object Repository {
 
     private const val FRESH_MS = 15 * 60 * 1000L
 
-    // The last refresh failed but the forecast on screen is still real.
     const val STALE = "stale"
 
     private val _state = MutableStateFlow(ForecastUi())
@@ -52,7 +51,6 @@ object Repository {
                     _state.value = ForecastUi(loading = false, forecast = fc, error = null)
                     nl.fietsweer.app.widget.WidgetUpdater.publish(context, settings, fc)
                 } else {
-                    // Keep the old forecast on screen, marked stale.
                     _state.value = _state.value.copy(loading = false, error = STALE)
                 }
             } catch (t: Throwable) {
@@ -64,7 +62,6 @@ object Repository {
         }
     }
 
-    /** For background work: no UI state. */
     suspend fun fetchDirect(settings: Settings): RouteForecast? {
         val home = settings.home ?: return null
         val work = settings.work ?: return null

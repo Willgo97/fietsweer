@@ -56,7 +56,6 @@ class Fmt(private val txt: Txt) {
         if (minutes >= 60) txt.hoursShort(String.format(locale, "%.1f", minutes / 60.0).removeSuffix(",0").removeSuffix(".0"))
         else txt.minutesShort(minutes)
 
-    /** "2 uur 45", never "2,8 uur". */
     fun hoursMinutes(minutes: Int): String {
         if (minutes < 60) return txt.minutesShort(minutes)
         val h = txt.hoursShort((minutes / 60).toString())

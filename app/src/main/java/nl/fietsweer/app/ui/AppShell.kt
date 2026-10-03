@@ -143,7 +143,6 @@ private fun MainShell(
                         NavigationBarItem(
                             selected = tab == index,
                             onClick = {
-                                // Tapping Settings again goes back to its menu.
                                 if (index == 2 && tab == 2) settingsPage = SettingsPage.MENU
                                 tab = index
                             },

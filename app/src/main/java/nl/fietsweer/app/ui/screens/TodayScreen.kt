@@ -103,7 +103,6 @@ fun TodayScreen(
 
     val fc = ui.forecast
     val engine = remember(fc, settings) { fc?.let { Engine(it, settings) } }
-    // Each leg rolls over to its next riding day once its slack has passed.
     val planned = remember(settings, nowTick) {
         Commute.plannedRides(settings, Coverage.BOTH, nowTick, alertDaysOnly = true)
     }
@@ -186,7 +185,6 @@ fun TodayScreen(
 
         item {
             val points = remember(fc, nowTick) { buildChartPoints(fc, nowTick) }
-            // A Monday ride seen on Friday lies past the chart's edge.
             val charted = rides.filter { it.departureMs < nowTick + 24 * 60 * 60 * 1000L }
             val bands = remember(charted) {
                 charted.map {
@@ -327,7 +325,6 @@ private fun HeroChip(label: String, strong: Boolean, icon: ImageVector?) {
             Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Fixed ink: the chip sits on the coloured hero in both themes.
             val fg = if (strong) HERO_CHIP_INK else Color.White
             if (icon != null) {
                 Icon(icon, null, tint = fg, modifier = Modifier.size(15.dp))
@@ -465,7 +462,6 @@ private fun RideCard(r: RideAssessment, engine: Engine?, onOpen: () -> Unit) {
     val riskColor = accents.forRisk(r.risk)
     val today = fmt.isToday(r.departureMs)
 
-    // Kept low on purpose: every card that grows pushes the rest off screen.
     SectionCard(
         modifier = Modifier.clickable(onClick = onOpen),
         contentPadding = 14,
@@ -638,7 +634,6 @@ private fun DepartureWindow(engine: Engine, p: Planned, nowTick: Long) {
     val fmt = AppTheme.fmt
     val accents = AppTheme.accents
 
-    // Round up to the grid so the list changes once a quarter, not every minute.
     val grid = Engine.GRID_MIN * 60_000L
     val from = maxOf(p.earliestMs, ((nowTick + grid - 1) / grid) * grid)
     val slots = remember(engine, p, from) {
@@ -660,7 +655,6 @@ private fun DepartureWindow(engine: Engine, p: Planned, nowTick: Long) {
         return
     }
 
-    // Prefer the slot nearest the planned time unless another is clearly drier.
     val floor = slots.minOf { it.risk }
     val best = slots.filter { it.risk <= floor + 0.05 }
         .minBy { abs(it.departureMs - p.departureMs) }

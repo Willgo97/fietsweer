@@ -86,7 +86,6 @@ fun PrecipTempChart(
 
             fun xOf(ms: Long): Float = ((ms - t0) / span) * w
 
-            // shaded ride windows
             for (b in bands) {
                 val x0 = xOf(b.startMs).coerceIn(0f, w)
                 val x1 = xOf(b.endMs).coerceIn(0f, w)
@@ -103,7 +102,6 @@ fun PrecipTempChart(
                 )
             }
 
-            // horizontal guides
             for (i in 1..3) {
                 val y = plotH * i / 4f
                 drawLine(
@@ -114,7 +112,6 @@ fun PrecipTempChart(
                 )
             }
 
-            // precipitation bars
             val barW = (w / points.size) * 0.62f
             for (p in points) {
                 val v = if (p.precipMm.isNaN()) 0.0 else p.precipMm
@@ -132,7 +129,6 @@ fun PrecipTempChart(
                 )
             }
 
-            // temperature curve
             val line = Path()
             val fill = Path()
             var started = false
@@ -162,7 +158,6 @@ fun PrecipTempChart(
                 )
             }
 
-            // now marker
             val nowX = xOf(System.currentTimeMillis())
             if (nowX in 0f..w) {
                 drawLine(
@@ -261,7 +256,6 @@ fun DepartureTimeline(
                 )
             }
 
-            // hour boundaries, so the ribbon can be read like a clock
             for (i in slots.indices) {
                 val cal = java.util.Calendar.getInstance().apply { timeInMillis = slots[i].departureMs }
                 if (cal.get(java.util.Calendar.MINUTE) != 0) continue

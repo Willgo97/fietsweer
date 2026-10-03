@@ -24,7 +24,6 @@ import nl.fietsweer.app.notify.Commute
 
 object WidgetRenderer {
 
-    /** Null when there is nothing worth showing; keep the old snapshot then. */
     fun snapshotFor(settings: Settings, forecast: RouteForecast?): WidgetSnapshot? {
         if (!settings.ready || forecast == null || !forecast.hasModels) return null
         val txt = Txt.of(settings.lang)
@@ -53,13 +52,11 @@ object WidgetRenderer {
         )
     }
 
-    // No forecasting here: the launcher can ask for a redraw at any moment.
     fun build(context: Context, settings: Settings, snapshot: WidgetSnapshot?): RemoteViews {
         val txt = Txt.of(settings.lang)
         val full = layout(context, txt, snapshot, compact = false)
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return full
         val compact = layout(context, txt, snapshot, compact = true)
-        // The launcher picks the largest layout that fits the cell it was given.
         return RemoteViews(
             mapOf(
                 SizeF(140f, 40f) to compact,
@@ -68,7 +65,6 @@ object WidgetRenderer {
         )
     }
 
-    /** One variant, for the previews in Settings. */
     fun single(
         context: Context,
         settings: Settings,

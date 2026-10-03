@@ -8,28 +8,21 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 import kotlin.math.tanh
 
-/** Ride time in wind: derive the rider's power from their still-air pace, then solve for the speed it buys against the wind. */
 object Bike {
 
-    private const val RHO = 1.225        // kg/m3, air near sea level
+    private const val RHO = 1.225 // kg/m3
     private const val G = 9.81
     private const val DRIVETRAIN = 0.97
 
-    // One upright commuter on purpose: power is calibrated from the rider's own pace,
-    // so a bike-type setting would change almost nothing.
-    private const val CDA = 0.60         // m2, frontal area times drag coefficient
-    private const val CRR = 0.0055       // rolling resistance
-    private const val MASS = 92.0        // kg, rider plus bike plus bags
+    private const val CDA = 0.60 // m2
+    private const val CRR = 0.0055
+    private const val MASS = 92.0 // kg, rider + bike + bags
 
-    // Wind is quoted at 10 m; at saddle height it is weaker.
     const val WIND_AT_BIKE = 0.65
 
-    // People push harder into a headwind and ease off with one behind them.
     private const val EFFORT_RANGE = 0.25
-    private const val EFFORT_SCALE = 3.5 // m/s of headwind for most of the effect
+    private const val EFFORT_SCALE = 3.5 // m/s
 
-    // Real routes wander off the straight line, so a nominal pure headwind is
-    // never felt for the whole ride.
     private val HEADING_SPREAD = listOf(0.0 to 0.40, -38.0 to 0.30, 38.0 to 0.30)
 
     fun powerFor(stillAirKmh: Double): Double {
@@ -47,7 +40,7 @@ object Bike {
         fun powerAt(v: Double): Double {
             val along = v + head
             val airspeed = sqrt(along * along + cross * cross)
-            // A tailwind faster than the rider makes `along` negative: drag becomes a push.
+            // Tailwind faster than the rider: `along` < 0 and drag pushes.
             val drag = 0.5 * RHO * CDA * airspeed * along
             return v * (CRR * MASS * G + drag) / DRIVETRAIN
         }
@@ -62,7 +55,7 @@ object Bike {
         return kmh.coerceIn(stillAirKmh * 0.35, stillAirKmh * 1.8)
     }
 
-    /** [relAngleDeg]: 0 = wind in your face, 180 = straight behind. Averages time, not speed. */
+    // relAngleDeg: 0 = headwind, 180 = tailwind.
     fun travelMinutes(
         distanceKm: Double,
         stillAirKmh: Double,

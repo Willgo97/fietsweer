@@ -12,7 +12,6 @@ class JacketWidget : AppWidgetProvider() {
         manager: AppWidgetManager,
         appWidgetIds: IntArray
     ) {
-        // Draw the stored snapshot first so the widget never blinks empty.
         WidgetUpdater.redraw(context)
         WidgetUpdater.requestRefresh(context)
     }
@@ -28,7 +27,6 @@ class JacketWidget : AppWidgetProvider() {
     }
 
     override fun onEnabled(context: Context) {
-        // First one placed: skip the refresh gap.
         WidgetUpdater.requestRefresh(context, force = true)
     }
 
