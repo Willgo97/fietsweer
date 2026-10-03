@@ -22,14 +22,9 @@ import nl.fietsweer.app.domain.Need
 import nl.fietsweer.app.domain.Txt
 import nl.fietsweer.app.notify.Commute
 
-/** Builds the home-screen widget. */
 object WidgetRenderer {
 
-    /**
-     * Runs the forecast through the engine and turns it into the strings the
-     * widget draws. Null when there is nothing worth showing yet, in which case
-     * the caller should keep whatever snapshot it already has.
-     */
+    /** Null when there is nothing worth showing; keep the old snapshot then. */
     fun snapshotFor(settings: Settings, forecast: RouteForecast?): WidgetSnapshot? {
         if (!settings.ready || forecast == null || !forecast.hasModels) return null
         val txt = Txt.of(settings.lang)
@@ -58,11 +53,7 @@ object WidgetRenderer {
         )
     }
 
-    /**
-     * Draws [snapshot], or a short "set me up" card when there is none at all.
-     * Deliberately does no forecasting work: a redraw must stay cheap, because
-     * the launcher can ask for one at any moment.
-     */
+    // No forecasting here: the launcher can ask for a redraw at any moment.
     fun build(context: Context, settings: Settings, snapshot: WidgetSnapshot?): RemoteViews {
         val txt = Txt.of(settings.lang)
         val full = layout(context, txt, snapshot, compact = false)
@@ -77,7 +68,7 @@ object WidgetRenderer {
         )
     }
 
-    /** One specific variant, for the previews in Settings. */
+    /** One variant, for the previews in Settings. */
     fun single(
         context: Context,
         settings: Settings,

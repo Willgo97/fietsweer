@@ -10,7 +10,6 @@ import nl.fietsweer.app.domain.Engine
 import nl.fietsweer.app.domain.Jacket
 import nl.fietsweer.app.domain.Txt
 
-/** Fetches a fresh forecast and posts the jacket verdict for one alert. */
 class AlertWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {

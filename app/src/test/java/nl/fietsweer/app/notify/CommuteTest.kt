@@ -13,11 +13,6 @@ import java.time.LocalDateTime
 import java.time.ZoneId
 import java.util.TimeZone
 
-/**
- * The rollover is the one bit of Fietsweer that has to reason about wall-clock
- * time, so it is pinned down here: per leg, on its own slack, across a
- * daylight-saving switch.
- */
 class CommuteTest {
 
     private val zone: ZoneId = ZoneId.of("Europe/Amsterdam")

@@ -85,7 +85,6 @@ import kotlin.math.roundToInt
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
 
-/** The menu, and the page each of its rows opens. */
 enum class SettingsPage { MENU, ROUTE, TIMES, ALERTS, RIDING, ADVICE, LOOK, WIDGET, ABOUT }
 
 @Composable
@@ -142,7 +141,6 @@ fun SettingsScreen(
             item { SubPageHeader(pageTitle(page)) { onPage(SettingsPage.MENU) } }
         }
 
-        // ----------------------------------------------------------- route
         if (page == SettingsPage.ROUTE) item {
             SectionCard {
                 if (settings.home != null && settings.work != null) {
@@ -173,7 +171,6 @@ fun SettingsScreen(
             }
         }
 
-        // ------------------------------------------------------------ times
         if (page == SettingsPage.TIMES) item {
             SectionCard {
                 Row(
@@ -206,7 +203,6 @@ fun SettingsScreen(
             }
         }
 
-        // ----------------------------------------------------------- riding
         if (page == SettingsPage.RIDING) item {
             SectionCard {
                 LabeledSlider(
@@ -241,7 +237,6 @@ fun SettingsScreen(
             }
         }
 
-        // ----------------------------------------------------------- advice
         if (page == SettingsPage.ADVICE) item {
             SectionCard {
                 Text(t.whatIsWet, style = MaterialTheme.typography.bodyMedium)
@@ -320,7 +315,6 @@ fun SettingsScreen(
             }
         }
 
-        // --------------------------------------------------------- appearance
         if (page == SettingsPage.LOOK) item {
             SectionCard {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -402,7 +396,6 @@ fun SettingsScreen(
             }
         }
 
-        // ----------------------------------------------------------- widget
         if (page == SettingsPage.WIDGET) item {
             val context = LocalContext.current
             SectionCard {
@@ -435,7 +428,6 @@ fun SettingsScreen(
             }
         }
 
-        // ------------------------------------------------------------ about
         if (page == SettingsPage.ABOUT) item {
             SectionCard {
                 Text(t.aboutBody, style = MaterialTheme.typography.bodyMedium)
@@ -501,7 +493,6 @@ private fun pageTitle(page: SettingsPage): String {
     }
 }
 
-/** One short row per page: an icon, a word, a chevron. */
 @Composable
 private fun SettingsMenu(onPage: (SettingsPage) -> Unit) {
     val rows = listOf(
@@ -534,11 +525,6 @@ private fun SettingsMenu(onPage: (SettingsPage) -> Unit) {
     }
 }
 
-/**
- * The slack either side of one leg's departure. The late end is also how long
- * the ride stays on the Today screen, so the window doubles as the moment the
- * next day's ride takes over.
- */
 @Composable
 private fun FlexEditor(
     leg: Leg,

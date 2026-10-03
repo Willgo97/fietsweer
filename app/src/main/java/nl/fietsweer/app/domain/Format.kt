@@ -8,7 +8,6 @@ import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
-/** Locale-aware formatting helpers bound to the active language. */
 class Fmt(private val txt: Txt) {
 
     private val zone: ZoneId get() = ZoneId.systemDefault()
@@ -18,9 +17,6 @@ class Fmt(private val txt: Txt) {
 
     fun time(ms: Long): String =
         Instant.ofEpochMilli(ms).atZone(zone).format(timeFmt)
-
-    fun hourLabel(ms: Long): String =
-        Instant.ofEpochMilli(ms).atZone(zone).format(DateTimeFormatter.ofPattern("HH", Locale.ROOT))
 
     fun dayWord(ms: Long): String {
         val d = Instant.ofEpochMilli(ms).atZone(zone).toLocalDate()
@@ -46,9 +42,6 @@ class Fmt(private val txt: Txt) {
     fun temp(c: Double): String =
         if (c.isNaN()) "–" else "${c.roundToInt()}°"
 
-    fun tempFine(c: Double): String =
-        if (c.isNaN()) "–" else String.format(locale, "%.1f°", c)
-
     fun mm(v: Double): String =
         if (v.isNaN()) "–" else String.format(locale, "%.1f", v)
 
@@ -59,16 +52,11 @@ class Fmt(private val txt: Txt) {
 
     fun kmh(v: Double): String = if (v.isNaN()) "–" else "${v.roundToInt()}"
 
-    fun percent(v: Double): String = "${(v * 100).roundToInt()}%"
-
     fun durationText(minutes: Int): String =
         if (minutes >= 60) txt.hoursShort(String.format(locale, "%.1f", minutes / 60.0).removeSuffix(",0").removeSuffix(".0"))
         else txt.minutesShort(minutes)
 
-    /**
-     * A span on the clock rather than a decimal: quarter-hour steps read as
-     * "2 uur 45", never as "2,8 uur".
-     */
+    /** "2 uur 45", never "2,8 uur". */
     fun hoursMinutes(minutes: Int): String {
         if (minutes < 60) return txt.minutesShort(minutes)
         val h = txt.hoursShort((minutes / 60).toString())
@@ -111,10 +99,6 @@ class Fmt(private val txt: Txt) {
         Instant.ofEpochMilli(ms).atZone(zone)
             .format(DateTimeFormatter.ofPattern("EEEE d MMMM", locale))
             .replaceFirstChar { it.uppercase(locale) }
-
-    fun shortDate(ms: Long): String =
-        Instant.ofEpochMilli(ms).atZone(zone)
-            .format(DateTimeFormatter.ofPattern("d MMM", locale))
 
     fun relativeShort(ms: Long): String {
         val delta = ms - System.currentTimeMillis()

@@ -4,14 +4,8 @@ import nl.fietsweer.app.data.Settings
 
 enum class Need { NO, MAYBE, YES }
 
-/**
- * How much you need to wear, as a ladder rather than a yes/no. Anything warmer
- * than the vest threshold is short-sleeve weather — provided it stays dry,
- * which is a separate question entirely.
- */
 enum class Layer { SHORT_SLEEVES, VEST, WINTER }
 
-/** Small extras worth a line in the notification when conditions are unusual. */
 enum class Extra { GLOVES, HAT, WINDY, FROST, HOT, HEAVY_SHOWER, DARK }
 
 data class Advice(
@@ -19,26 +13,13 @@ data class Advice(
     val layer: Layer,
     val extras: List<Extra>,
     val rides: List<RideAssessment>,
-    /** False when no ride had usable temperature data to judge. */
     val temperatureKnown: Boolean = true
 ) {
     val anythingNeeded: Boolean get() = rain != Need.NO || layer != Layer.SHORT_SLEEVES
     val definite: Boolean get() = rain == Need.YES || layer != Layer.SHORT_SLEEVES
-
-    /** 0 = nothing to worry about, 3 = take everything. */
-    val severity: Int
-        get() {
-            val r = when (rain) { Need.NO -> 0; Need.MAYBE -> 1; Need.YES -> 2 }
-            val w = when (layer) { Layer.SHORT_SLEEVES -> 0; Layer.VEST -> 1; Layer.WINTER -> 2 }
-            return maxOf(r, w) + if (r == 2 && w == 2) 1 else 0
-        }
-
-    val worstRide: RideAssessment? get() = rides.maxByOrNull { it.risk }
 }
 
 object Jacket {
-
-    fun forRide(a: RideAssessment, s: Settings): Advice = forRides(listOf(a), s)
 
     fun forRides(rides: List<RideAssessment>, s: Settings): Advice {
         if (rides.isEmpty())
@@ -57,8 +38,7 @@ object Jacket {
         if (rain == Need.MAYBE && maxMm >= 1.5) rain = Need.YES
 
         val withConditions = rides.filter { it.hasConditions }
-        // The coldest moment of the ride decides, not the average: arriving
-        // frozen is what you remember.
+        // The coldest moment decides, not the average.
         val coldest = withConditions.minOfOrNull { it.minBikeFeelC }
         val layer = when {
             coldest == null -> Layer.SHORT_SLEEVES

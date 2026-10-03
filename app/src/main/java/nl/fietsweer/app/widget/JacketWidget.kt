@@ -12,8 +12,7 @@ class JacketWidget : AppWidgetProvider() {
         manager: AppWidgetManager,
         appWidgetIds: IntArray
     ) {
-        // Paint the stored snapshot straight away so the widget never blinks
-        // through an empty state, then go and see whether it is still true.
+        // Draw the stored snapshot first so the widget never blinks empty.
         WidgetUpdater.redraw(context)
         WidgetUpdater.requestRefresh(context)
     }
@@ -24,13 +23,12 @@ class JacketWidget : AppWidgetProvider() {
         appWidgetId: Int,
         newOptions: Bundle
     ) {
-        // Resized: the size-specific layouts are already in the RemoteViews, but
-        // repaint so an older launcher picks the right one up.
+        // Older launchers need a repaint to pick the size-specific layout.
         WidgetUpdater.redraw(context)
     }
 
     override fun onEnabled(context: Context) {
-        // First one placed: fetch straight away rather than waiting out the gap.
+        // First one placed: skip the refresh gap.
         WidgetUpdater.requestRefresh(context, force = true)
     }
 

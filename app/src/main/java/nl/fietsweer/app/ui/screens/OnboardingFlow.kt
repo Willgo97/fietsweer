@@ -137,8 +137,6 @@ fun OnboardingFlow(
     }
 }
 
-// ------------------------------------------------------------------- welcome
-
 @Composable
 private fun WelcomeStep(onStart: () -> Unit) {
     val t = AppTheme.txt
@@ -226,8 +224,6 @@ private fun WelcomeStep(onStart: () -> Unit) {
         }
     }
 }
-
-// --------------------------------------------------------------------- times
 
 @Composable
 private fun TimesStep(
@@ -326,8 +322,6 @@ private fun TimesStep(
     }
 }
 
-// -------------------------------------------------------------- notification
-
 @Composable
 private fun NotifyStep(
     settings: Settings,
@@ -422,8 +416,6 @@ private fun NotifyStep(
         )
     }
 }
-
-// ------------------------------------------------------------------ scaffold
 
 @Composable
 private fun StepScaffold(

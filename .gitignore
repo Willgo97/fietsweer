@@ -4,13 +4,9 @@ app/build/
 .gradle/
 .cxx/
 
-# Local machine configuration — contains absolute SDK paths
 local.properties
 
-# Signing material. The release keystore lives next to the other apps' keys in
-# ~/Documents/android-apps/ and its passwords in ~/.gradle/gradle.properties;
-# neither belongs in the repository. Not in ~/.android/ — that directory was
-# wiped on 14 September 2026 and took the previous release key with it.
+# Signing: keystore in ../sleutels, passwords in ~/.gradle/gradle.properties
 *.jks
 *.keystore
 keystore.properties
@@ -22,6 +18,5 @@ signing.properties
 .DS_Store
 captures/
 
-# Release artefacts are attached to GitHub Releases, not committed
 *.apk
 *.aab

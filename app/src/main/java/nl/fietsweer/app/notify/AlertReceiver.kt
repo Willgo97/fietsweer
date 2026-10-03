@@ -17,7 +17,6 @@ class AlertReceiver : BroadcastReceiver() {
         val id = intent.getStringExtra(EXTRA_ALERT_ID).orEmpty()
         enqueue(context, id)
 
-        // Put the next occurrence of this very alert back on the calendar.
         val prefs = Prefs.get(context)
         prefs.reload()
         prefs.current.alerts.firstOrNull { it.id == id }?.let {

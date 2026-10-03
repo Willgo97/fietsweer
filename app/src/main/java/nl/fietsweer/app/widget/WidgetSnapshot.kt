@@ -2,17 +2,8 @@ package nl.fietsweer.app.widget
 
 import android.content.Context
 
-/**
- * The handful of strings the widget draws, kept on disk.
- *
- * The forecast itself only lives in memory, so once Android reclaims the app
- * process the widget has nothing to draw. Without a snapshot it would fall back
- * to its "could not fetch" layout and then flip to real content a moment later
- * when the worker finishes — a visible flicker between two very different
- * layouts, and a pointless one, because the previous answer was still perfectly
- * good. Persisting the drawn result means a redraw is always cheap and always
- * shows something true.
- */
+// The forecast only lives in memory. Persisting what the widget drew lets it redraw
+// after process death without flickering through the "could not fetch" layout.
 data class WidgetSnapshot(
     val headline: String,
     val chips: String,
@@ -58,11 +49,7 @@ object WidgetStore {
 
     fun clear(context: Context) = prefs(context).edit().clear().apply()
 
-    /**
-     * When we last *tried* to refresh, success or not. Separate from the
-     * snapshot's own timestamp: a fetch that keeps failing must still not be
-     * allowed to retrigger itself in a tight loop.
-     */
+    // Separate from the snapshot time, so a failing fetch cannot retrigger itself in a loop.
     fun lastAttempt(context: Context): Long = prefs(context).getLong("lastAttempt", 0L)
 
     fun markAttempt(context: Context, at: Long) {

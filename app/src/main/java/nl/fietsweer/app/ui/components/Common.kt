@@ -42,7 +42,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import nl.fietsweer.app.ui.theme.AppTheme
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
 
 @Composable
@@ -103,7 +102,7 @@ fun ChipFlow(
     )
 }
 
-/** A compact segmented control; hand-rolled so it stays small on narrow screens. */
+// Hand-rolled so it stays small on narrow screens.
 @Composable
 fun <T> SegmentedChoice(
     options: List<Pair<T, String>>,
@@ -408,7 +407,6 @@ fun EmptyState(
     }
 }
 
-/** A back arrow and the page title, at the top of a settings page. */
 @Composable
 fun SubPageHeader(
     title: String,

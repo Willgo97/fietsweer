@@ -25,8 +25,6 @@ import nl.fietsweer.app.data.ThemeMode
 import nl.fietsweer.app.domain.Fmt
 import nl.fietsweer.app.domain.Txt
 
-// -------------------------------------------------------------------- palette
-
 private val BrandLight = lightColorScheme(
     primary = Color(0xFF006684),
     onPrimary = Color(0xFFFFFFFF),
@@ -95,7 +93,7 @@ private val BrandDark = darkColorScheme(
     inverseOnSurface = Color(0xFF2C3134)
 )
 
-/** Colours that carry meaning rather than brand: risk levels and garments. */
+/** Colours that carry meaning: risk levels and garments. */
 data class Accents(
     val dry: Color,
     val mostlyDry: Color,
@@ -116,7 +114,6 @@ data class Accents(
         else -> wet
     }
 
-    /** Blue when cold, teal when pleasant, orange when hot. */
     fun forTemperature(c: Double): Color = when {
         c.isNaN() -> uncertain
         c <= 0 -> Color(0xFF7EC8FF)
@@ -157,8 +154,6 @@ private val DarkAccents = Accents(
 val LocalAccents: ProvidableCompositionLocal<Accents> = staticCompositionLocalOf { LightAccents }
 val LocalTxt: ProvidableCompositionLocal<Txt> = staticCompositionLocalOf { Txt() }
 val LocalFmt: ProvidableCompositionLocal<Fmt> = staticCompositionLocalOf { Fmt(Txt()) }
-
-// ----------------------------------------------------------------- typography
 
 private val AppTypography = Typography().let { base ->
     base.copy(

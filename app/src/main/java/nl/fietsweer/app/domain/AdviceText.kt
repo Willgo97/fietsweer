@@ -2,13 +2,9 @@ package nl.fietsweer.app.domain
 
 import nl.fietsweer.app.data.Leg
 
-/** Turns an [Advice] into the sentences shown on screen and in notifications. */
 object AdviceText {
 
-    /**
-      * Rain and warmth are independent axes, so the headline names whichever
-      * combination actually applies rather than picking a winner.
-      */
+    // Rain and warmth are independent, so name whichever combination applies.
     fun headline(a: Advice, t: Txt): String = when (a.rain) {
         Need.YES -> when (a.layer) {
             Layer.WINTER -> t.adviceRainWinter
@@ -27,7 +23,6 @@ object AdviceText {
         }
     }
 
-    /** Short labels for the "take with you" chips. */
     fun chips(a: Advice, t: Txt): List<Pair<String, Boolean>> {
         val out = mutableListOf<Pair<String, Boolean>>()
         if (a.rain != Need.NO) out += t.chipRainJacket to (a.rain == Need.YES)
@@ -53,23 +48,13 @@ object AdviceText {
 
     fun legName(leg: Leg, t: Txt): String = if (leg == Leg.OUTBOUND) t.toWork else t.toHome
 
-    /**
-     * When a ride leaves, with the day spelled out whenever it is not today —
-     * a leg that has already rolled over is talking about tomorrow.
-     */
+    // Spells out the day when it is not today: a rolled-over leg is about tomorrow.
     fun moment(r: RideAssessment, f: Fmt): String =
         if (f.isToday(r.departureMs)) f.time(r.departureMs) else f.dayTime(r.departureMs)
 
-    /** One line per ride, as used in the expanded notification. */
     fun legLine(r: RideAssessment, t: Txt, f: Fmt): String {
         val rain = if (r.risk < 0.10) t.notifDry else t.notifRainPct(r.riskPercent)
         val feel = if (r.hasConditions) " · ${t.feelsLike} ${f.temp(r.bikeFeelC)}" else ""
         return t.notifLegLine(legName(r.leg, t), moment(r, f), rain + feel)
     }
-
-    fun summary(a: Advice, t: Txt, f: Fmt): String =
-        a.rides.joinToString(" · ") { r ->
-            val rain = if (r.risk < 0.10) t.notifDry else t.notifRainPct(r.riskPercent)
-            "${moment(r, f)} $rain"
-        }
 }

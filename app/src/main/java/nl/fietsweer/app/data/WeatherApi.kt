@@ -16,7 +16,6 @@ enum class SourceState { OK, EMPTY, FAILED, SKIPPED }
 
 data class SourceStatus(val label: String, val state: SourceState, val note: String = "")
 
-/** One weather model's precipitation series, sampled at every route point. */
 class ModelSeries(
     val id: String,
     val label: String,
@@ -25,11 +24,7 @@ class ModelSeries(
 
 data class RadarSample(val timeMs: Long, val mmPerHour: Double)
 
-/**
- * Everything the analysis needs for one home/work pair. The route is
- * direction-agnostic: the same sampled points serve both legs, walked
- * forwards or backwards.
- */
+// The same route points serve both legs, walked forwards or backwards.
 class RouteForecast(
     val home: Place,
     val work: Place,
@@ -59,19 +54,15 @@ class RouteForecast(
 ) {
     val hasModels: Boolean get() = models.isNotEmpty() && modelTimes.isNotEmpty()
 
-    /** Every source we asked came back empty or failed — almost always offline. */
     val allSourcesFailed: Boolean
         get() = sources.isNotEmpty() && sources.none { it.state == SourceState.OK }
-
-    /** Latest timestamp for which the deterministic models still have data. */
-    val modelHorizonMs: Long get() = modelTimes.lastOrNull() ?: 0L
 }
 
 object WeatherApi {
 
     private const val SAMPLE_POINTS = 4
 
-    /** Every deterministic model Open-Meteo serves; unavailable ones drop out. */
+    // Unavailable models simply drop out.
     val MODELS: List<Pair<String, String>> = listOf(
         "knmi_harmonie_arome_netherlands" to "KNMI Harmonie 2 km",
         "knmi_seamless" to "KNMI seamless",
@@ -92,8 +83,6 @@ object WeatherApi {
 
     private val zoneParam: String
         get() = URLEncoder.encode(ZoneId.systemDefault().id, "UTF-8")
-
-    // ------------------------------------------------------------------ fetch
 
     suspend fun fetch(home: Place, work: Place, useRadar: Boolean): RouteForecast = coroutineScope {
         val points = Geo.samplePoints(home.toLatLon(), work.toLatLon(), SAMPLE_POINTS)
@@ -130,7 +119,6 @@ object WeatherApi {
 
         val sources = mutableListOf<SourceStatus>()
 
-        // --- deterministic models, one series per route point -----------------
         var modelTimes = LongArray(0)
         val models = mutableListOf<ModelSeries>()
         dModels.await().onSuccess { body ->
@@ -161,7 +149,6 @@ object WeatherApi {
             sources += SourceStatus("Open-Meteo · weather models", SourceState.FAILED, it.shortMessage())
         }
 
-        // --- ensemble members give a genuine probability ----------------------
         var ensTimes = LongArray(0)
         val ensMembers = mutableListOf<DoubleArray>()
         dEns.await().onSuccess { body ->
@@ -182,7 +169,6 @@ object WeatherApi {
             sources += SourceStatus("Ensembles ICON-D2 + ECMWF", SourceState.FAILED, it.shortMessage())
         }
 
-        // --- temperature, wind, daily outlook ---------------------------------
         var fineTimes = LongArray(0)
         var fine: Map<String, DoubleArray> = emptyMap()
         var hourTimes = LongArray(0)
@@ -200,7 +186,7 @@ object WeatherApi {
             sources += SourceStatus("Open-Meteo · temperature & wind", SourceState.FAILED, it.shortMessage())
         }
 
-        // --- Buienradar rain radar nowcast (0-2 h) ----------------------------
+        // Buienradar nowcast, 0-2 h
         val radar = mutableListOf<RadarSample>()
         val radarResult = dRadar.await()
         if (radarResult == null) {
@@ -233,8 +219,6 @@ object WeatherApi {
         )
     }
 
-    // ------------------------------------------------------------- conditions
-
     private class Conditions(
         val fineTimes: LongArray, val fine: Map<String, DoubleArray>,
         val hourTimes: LongArray, val hourly: Map<String, DoubleArray>,
@@ -266,8 +250,7 @@ object WeatherApi {
             "&hourly=$HOURLY_VARS&daily=$DAILY_VARS&current=$CURRENT_VARS" +
             "&forecast_days=4&timeformat=unixtime&timezone=$zoneParam"
 
-        // The 15-minute block is a bonus: if a model does not serve it the whole
-        // request would fail, so fall back to hourly-only rather than lose it all.
+        // minutely_15 makes some models fail the whole request; fall back to hourly.
         val body = runCatching { Net.getText("$base&minutely_15=$FINE_VARS") }
             .getOrElse { Net.getText(base) }
 
@@ -294,12 +277,7 @@ object WeatherApi {
         )
     }
 
-    // ------------------------------------------------------------------ radar
-
-    /**
-     * Buienradar serves lines like `000|16:50`: a 0-255 value on a logarithmic
-     * scale, timestamped in Dutch local time. Values roll past midnight.
-     */
+    // Lines like `000|16:50`: 0-255 on a log scale, Dutch local time, rolling past midnight.
     fun parseRadar(text: String): List<RadarSample> {
         val zone = ZoneId.of("Europe/Amsterdam")
         val now = ZonedDateTime.now(zone)
@@ -322,11 +300,9 @@ object WeatherApi {
         return out
     }
 
-    /** Buienradar only covers the Netherlands, Belgium and the German border. */
+    // Buienradar covers only NL, BE and the German border.
     fun inBenelux(p: LatLon): Boolean =
         p.lat in 48.5..55.5 && p.lon in 1.5..9.5
-
-    // ----------------------------------------------------------------- helpers
 
     private fun fmt(v: Double) = String.format(java.util.Locale.US, "%.4f", v)
 
@@ -339,10 +315,7 @@ object WeatherApi {
     private fun JSONArray.toDoubles(): DoubleArray =
         DoubleArray(length()) { if (isNull(it)) Double.NaN else optDouble(it, Double.NaN) }
 
-    /**
-     * Turns an Open-Meteo block into name -> values. `time` is skipped; day
-     * blocks additionally carry sunrise/sunset, which are unix seconds too.
-     */
+    // Skips `time`; daily sunrise/sunset are unix seconds too.
     private fun JSONObject.toSeriesMap(includeTimeLike: Boolean = false): Map<String, DoubleArray> {
         val out = LinkedHashMap<String, DoubleArray>()
         for (k in keys()) {

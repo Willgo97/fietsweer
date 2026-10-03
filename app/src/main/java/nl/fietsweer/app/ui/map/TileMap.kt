@@ -52,21 +52,18 @@ import kotlin.math.tan
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
 
-// ------------------------------------------------------------------- sources
-
 enum class TileSource(
     val id: String,
     val template: String,
     val maxZoom: Int,
     val attribution: String
 ) {
-    /** The standard OpenStreetMap raster style. Free, no key, needs a real UA. */
+    // Free, no key, but needs a real User-Agent.
     OSM(
         "osm", "https://tile.openstreetmap.org/{z}/{x}/{y}.png", 19,
         "\u00a9 OpenStreetMap contributors"
     ),
 
-    /** Humanitarian style: softer colours, slightly less clutter. */
     OSM_HOT(
         "hot", "https://tile-a.openstreetmap.fr/hot/{z}/{x}/{y}.png", 19,
         "\u00a9 OpenStreetMap contributors \u00b7 HOT"
@@ -76,11 +73,7 @@ enum class TileSource(
         template.replace("{z}", z.toString()).replace("{x}", x.toString()).replace("{y}", y.toString())
 }
 
-/**
- * A dark basemap without a second tile server: invert the light tiles and
- * rotate the hue back, the same trick CSS `invert() hue-rotate(180deg)` uses.
- * Slightly dimmed so the markers keep the upper hand.
- */
+// Dark basemap from the light tiles: invert, rotate the hue back, dim a little.
 private val DARK_TILE_FILTER: ColorFilter = ColorFilter.colorMatrix(
     ColorMatrix(
         floatArrayOf(
@@ -92,12 +85,7 @@ private val DARK_TILE_FILTER: ColorFilter = ColorFilter.colorMatrix(
     )
 )
 
-// -------------------------------------------------------------- tile loading
-
-/**
- * Two-level tile cache: bitmaps in memory, PNG bytes on disk. Requests are
- * deduplicated so panning does not queue the same tile twice.
- */
+// Bitmaps in memory, PNGs on disk; duplicate requests are merged.
 object TileLoader {
 
     private const val MAX_MEMORY_TILES = 220
@@ -150,11 +138,8 @@ object TileLoader {
         }
     }
 
-    /** Lets a failed area be retried, e.g. after the network comes back. */
     fun clearFailures() = failed.clear()
 }
-
-// -------------------------------------------------------------------- camera
 
 class MapCamera(lat: Double, lon: Double, zoom: Float) {
     var lat by mutableStateOf(lat)
@@ -179,8 +164,6 @@ class MapCamera(lat: Double, lon: Double, zoom: Float) {
 fun rememberMapCamera(lat: Double, lon: Double, zoom: Float = 13f): MapCamera =
     remember { MapCamera(lat, lon, zoom) }
 
-// ------------------------------------------------------------------- markers
-
 data class MapMarker(
     val point: LatLon,
     val color: Color,
@@ -190,13 +173,6 @@ data class MapMarker(
 
 data class MapLine(val points: List<LatLon>, val color: Color)
 
-// ----------------------------------------------------------------- composable
-
-/**
- * A plain raster slippy map. Rendering the tiles directly keeps the whole map
- * inside Compose: no view interop, no separate lifecycle, and markers can use
- * the same colours as the rest of the app.
- */
 @Composable
 fun TileMap(
     camera: MapCamera,
@@ -214,8 +190,7 @@ fun TileMap(
     var version by remember { mutableIntStateOf(0) }
     val bump = remember { { version++; Unit } }
 
-    // Tiles are drawn at twice their pixel size on dense screens so that the
-    // map does not end up microscopic; retina sources supply the extra detail.
+    // Retina tiles at up to 2x so the map is not microscopic on dense screens.
     val tileScale = density.coerceIn(1f, 2f)
     val baseTile = 256f * tileScale
 
@@ -232,7 +207,6 @@ fun TileMap(
                     if (!interactive) Modifier else Modifier.pointerInput(source) {
                         detectTransformGestures { centroid, pan, gestureZoom, _ ->
                             val world = baseTile * 2f.pow(camera.zoom)
-                            // pan
                             var nx = lonToNx(camera.lon) - pan.x / world
                             var ny = latToNy(camera.lat) - pan.y / world
 
@@ -313,7 +287,6 @@ fun TileMap(
                 }
             }
 
-            // ---- overlays -----------------------------------------------------
             val world = baseTile * 2f.pow(camera.zoom)
             fun project(p: LatLon): Offset = Offset(
                 cx + ((lonToNx(p.lon) - lonToNx(camera.lon)) * world).toFloat(),
@@ -368,8 +341,6 @@ private fun DrawScope.drawPin(
     drawCircle(ring, radius = r * 0.36f, center = head)
 }
 
-// ------------------------------------------------------------------- helpers
-
 internal fun lonToNx(lon: Double): Double = (lon + 180.0) / 360.0
 
 internal fun latToNy(lat: Double): Double {
@@ -382,7 +353,6 @@ internal fun nxToLon(nx: Double): Double = nx * 360.0 - 180.0
 internal fun nyToLat(ny: Double): Double =
     Math.toDegrees(atan(sinh(PI * (1.0 - 2.0 * ny))))
 
-/** Picks a zoom that comfortably frames two points on a map of [heightPx]. */
 fun zoomForPair(a: LatLon, b: LatLon, widthPx: Float, densityScale: Float): Float {
     val km = Geo.haversineKm(a, b).coerceAtLeast(0.4)
     val target = Geo.zoomForSpan(a.lat, km * 1.8, widthPx.toDouble()).toFloat()
@@ -390,12 +360,10 @@ fun zoomForPair(a: LatLon, b: LatLon, widthPx: Float, densityScale: Float): Floa
     return (target - tileAdjust).coerceIn(MapCamera.MIN_ZOOM, MapCamera.MAX_ZOOM)
 }
 
-/** Which tiles to draw, and whether to run them through the dark filter. */
 data class MapTheme(val source: TileSource, val darken: Boolean) {
     val attribution: String get() = source.attribution
 }
 
-/** Maps the user's preference onto a concrete basemap. */
 fun mapThemeFor(style: nl.fietsweer.app.data.MapStyle, dark: Boolean): MapTheme =
     when (style) {
         nl.fietsweer.app.data.MapStyle.SOFT -> MapTheme(TileSource.OSM_HOT, false)

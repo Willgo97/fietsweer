@@ -6,11 +6,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.json.Json
 
-/**
- * Settings live in a single JSON blob in SharedPreferences. That keeps reads
- * synchronous, which matters because alarm receivers and workers need the
- * configuration immediately, without a coroutine hop.
- */
+// One JSON blob in SharedPreferences: synchronous reads for alarm receivers and workers.
 class Prefs private constructor(context: Context) {
 
     private val sp = context.applicationContext
@@ -38,7 +34,7 @@ class Prefs private constructor(context: Context) {
         _state.value = next
     }
 
-    /** Re-read from disk; used by background workers that may see other writes. */
+    /** For background workers that may miss other processes' writes. */
     fun reload() {
         _state.value = read()
     }

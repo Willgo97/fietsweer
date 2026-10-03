@@ -12,11 +12,7 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
 
-/**
- * Turns the configured alerts into exact alarms. Every firing reschedules
- * itself, and the set of scheduled ids is remembered so alerts the user
- * deleted can still be cancelled.
- */
+// Remembers every id it scheduled, so deleted alerts can still be cancelled.
 object AlertScheduler {
 
     private const val TAG = "AlertScheduler"
@@ -31,7 +27,7 @@ object AlertScheduler {
         return am.canScheduleExactAlarms()
     }
 
-    /** Next moment this alert should fire, or null when no day is selected. */
+    /** Null when no day is selected. */
     fun nextTrigger(alert: Alert, fromMs: Long = System.currentTimeMillis()): Long? {
         if (!alert.enabled || alert.days.isEmpty()) return null
         val zone = ZoneId.systemDefault()
@@ -87,7 +83,7 @@ object AlertScheduler {
             if (canScheduleExact(context)) {
                 am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, atMs, pi)
             } else {
-                // Still wakes the device, just with a window Android chooses.
+                // Inexact, but still wakes the device.
                 am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, atMs, pi)
             }
         } catch (se: SecurityException) {

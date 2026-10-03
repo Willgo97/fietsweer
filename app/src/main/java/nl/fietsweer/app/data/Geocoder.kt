@@ -5,11 +5,7 @@ import nl.fietsweer.app.domain.LatLon
 import org.json.JSONObject
 import java.net.URLEncoder
 
-/**
- * Place lookup. Forward search uses the Open-Meteo geocoder (fast, no rate
- * limit worth worrying about); reverse lookup uses Nominatim, which is only
- * called when the user actually stops dragging the map.
- */
+// Forward search via Open-Meteo; reverse via Nominatim, only once the map stops moving (rate limits).
 object Geocoder {
 
     suspend fun search(query: String, near: LatLon?, language: String): List<Place> {
@@ -38,7 +34,6 @@ object Geocoder {
         )
     }
 
-    /** Best-effort street level name for a dropped pin. */
     suspend fun reverse(point: LatLon, language: String): Place? = runCatching {
         val url = "https://nominatim.openstreetmap.org/reverse" +
             "?format=jsonv2&zoom=17&addressdetails=1" +

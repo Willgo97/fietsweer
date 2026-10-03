@@ -13,15 +13,11 @@ data class ForecastUi(
     val error: String? = null
 )
 
-/**
- * Owns the last forecast bundle. One refresh at a time, and a stale copy is
- * kept on screen while a new one is being fetched.
- */
 object Repository {
 
     private const val FRESH_MS = 15 * 60 * 1000L
 
-    /** Marks "the last refresh failed but what you see is still real". */
+    // The last refresh failed but the forecast on screen is still real.
     const val STALE = "stale"
 
     private val _state = MutableStateFlow(ForecastUi())
@@ -56,8 +52,7 @@ object Repository {
                     _state.value = ForecastUi(loading = false, forecast = fc, error = null)
                     nl.fietsweer.app.widget.WidgetUpdater.publish(context, settings, fc)
                 } else {
-                    // A failed refresh should not throw away a perfectly good
-                    // forecast; keep it on screen and mark it stale instead.
+                    // Keep the old forecast on screen, marked stale.
                     _state.value = _state.value.copy(loading = false, error = STALE)
                 }
             } catch (t: Throwable) {
@@ -69,7 +64,7 @@ object Repository {
         }
     }
 
-    /** Used by the background worker, which wants a bundle without touching UI state. */
+    /** For background work: no UI state. */
     suspend fun fetchDirect(settings: Settings): RouteForecast? {
         val home = settings.home ?: return null
         val work = settings.work ?: return null

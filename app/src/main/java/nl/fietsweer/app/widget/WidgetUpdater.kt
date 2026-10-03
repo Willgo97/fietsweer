@@ -21,7 +21,7 @@ object WidgetUpdater {
         AppWidgetManager.getInstance(context)
             .getAppWidgetIds(ComponentName(context, JacketWidget::class.java))
 
-    /** Repaints from the stored snapshot. Cheap: no forecasting, no network. */
+    /** From the stored snapshot: no forecasting, no network. */
     fun redraw(context: Context) {
         val ctx = context.applicationContext
         val widgetIds = ids(ctx)
@@ -30,11 +30,7 @@ object WidgetUpdater {
         AppWidgetManager.getInstance(ctx).updateAppWidget(widgetIds, views)
     }
 
-    /**
-     * Recomputes from a fresh forecast, stores the result and repaints. A
-     * forecast that yields nothing leaves the previous snapshot alone rather
-     * than replacing good information with an error card.
-     */
+    // An empty result keeps the previous snapshot instead of an error card.
     fun publish(context: Context, settings: Settings, forecast: RouteForecast?) {
         val ctx = context.applicationContext
         if (ids(ctx).isEmpty()) return
@@ -42,19 +38,11 @@ object WidgetUpdater {
         redraw(ctx)
     }
 
-    /** At most one background fetch per this interval, whatever pokes us. */
     private const val MIN_REFRESH_GAP_MS = 10 * 60 * 1000L
 
-    /**
-     * Fetches in the background and then republishes.
-     *
-     * Rate limited on purpose, and not merely to be polite. Enqueuing work makes
-     * WorkManager toggle one of its own receiver components, which fires
-     * PACKAGE_CHANGED, which makes the system re-broadcast an update to every
-     * widget provider in this package — straight back into [JacketWidget.onUpdate].
-     * Without this guard that is an infinite loop: measured at roughly four
-     * widget updates a second, with the launcher repainting each time.
-     */
+    // Rate limited because enqueuing work toggles a WorkManager receiver, which fires
+    // PACKAGE_CHANGED, which re-broadcasts a widget update straight back into
+    // JacketWidget.onUpdate: an infinite loop of about four updates a second.
     fun requestRefresh(context: Context, force: Boolean = false) {
         val ctx = context.applicationContext
         if (ids(ctx).isEmpty()) return

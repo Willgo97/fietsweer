@@ -20,21 +20,15 @@ android {
         resourceConfigurations += listOf("en", "nl")
     }
 
-    // Release signing comes from ~/.gradle/gradle.properties (or the matching
-    // environment variables), never from the repository. Without them the build
-    // still works and simply falls back to the debug key, so a fresh clone can
-    // be built by anyone.
-    val releaseStore = (findProperty("FIETSWEER_STORE_FILE") as String?)
-        ?: System.getenv("FIETSWEER_STORE_FILE")
+    // Signing from ~/.gradle/gradle.properties or env; without it, falls back to the debug key.
+    fun secret(name: String) = findProperty(name) as String? ?: System.getenv(name)
+    val releaseStore = secret("FIETSWEER_STORE_FILE")
     val releaseSigning = if (releaseStore != null && file(releaseStore).exists()) {
         signingConfigs.create("release") {
             storeFile = file(releaseStore)
-            storePassword = (findProperty("FIETSWEER_STORE_PASSWORD") as String?)
-                ?: System.getenv("FIETSWEER_STORE_PASSWORD")
-            keyAlias = (findProperty("FIETSWEER_KEY_ALIAS") as String?)
-                ?: System.getenv("FIETSWEER_KEY_ALIAS")
-            keyPassword = (findProperty("FIETSWEER_KEY_PASSWORD") as String?)
-                ?: System.getenv("FIETSWEER_KEY_PASSWORD")
+            storePassword = secret("FIETSWEER_STORE_PASSWORD")
+            keyAlias = secret("FIETSWEER_KEY_ALIAS")
+            keyPassword = secret("FIETSWEER_KEY_PASSWORD")
         }
     } else {
         logger.lifecycle("No release keystore configured; signing with the debug key.")

@@ -227,8 +227,6 @@ fun ForecastScreen(
     }
 }
 
-// ---------------------------------------------------------------- detail card
-
 @Composable
 private fun DetailCard(r: RideAssessment) {
     val t = AppTheme.txt
@@ -312,8 +310,6 @@ private fun DetailRow(label: String, value: String, valueColor: Color? = null) {
         }
     }
 }
-
-// -------------------------------------------------------------- daily outlook
 
 @Composable
 private fun DailyOutlook(fc: RouteForecast) {
@@ -427,8 +423,6 @@ private fun skyGlyph(sky: Sky): String = when (sky) {
     Sky.THUNDER -> "⛈"
     Sky.UNKNOWN -> "·"
 }
-
-// -------------------------------------------------------------------- sources
 
 @Composable
 private fun SourcesCard(fc: RouteForecast) {

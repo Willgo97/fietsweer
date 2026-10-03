@@ -7,15 +7,9 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.util.zip.GZIPInputStream
 
-/**
- * Small blocking-IO HTTP helper. The app makes a handful of GET requests per
- * refresh, so a dedicated client library would be more machinery than value.
- */
 object Net {
 
-    /**
-     * OpenStreetMap and Nominatim both require a real identifying User-Agent.
-     */
+    // OpenStreetMap and Nominatim require an identifying User-Agent.
     const val USER_AGENT =
         "Fietsweer/1.0 (Android; cycling weather app; " +
             "https://github.com/Willgo97/fietsweer)"

@@ -106,9 +106,7 @@ fun LocationPickerScreen(
 
     var searchJob by remember { mutableStateOf<Job?>(null) }
 
-    // Reverse geocode once the map has been still for a moment. Keying the
-    // effect on the drag counter gives the debounce for free: every new drag
-    // cancels the pending lookup.
+    // Keyed on the drag counter: every new drag cancels the pending lookup, a free debounce.
     LaunchedEffect(dragTick) {
         if (dragTick == 0) return@LaunchedEffect
         resolving = true
@@ -145,7 +143,7 @@ fun LocationPickerScreen(
             }
         )
 
-        // centre pin, drawn as an overlay so it never lags behind the gesture
+        // Overlay, so the pin never lags behind the gesture.
         Box(
             Modifier
                 .align(Alignment.Center)
@@ -154,7 +152,6 @@ fun LocationPickerScreen(
             CenterPin(accent)
         }
 
-        // ----------------------------------------------------------- top bar
         Column(
             Modifier
                 .fillMaxWidth()
@@ -286,7 +283,6 @@ fun LocationPickerScreen(
             }
         }
 
-        // ---------------------------------------------------------- controls
         Column(
             Modifier
                 .align(Alignment.CenterEnd)
@@ -323,7 +319,6 @@ fun LocationPickerScreen(
             }
         }
 
-        // ------------------------------------------------------------ bottom
         Surface(
             Modifier
                 .align(Alignment.BottomCenter)

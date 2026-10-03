@@ -2,7 +2,6 @@ package nl.fietsweer.app.domain
 
 import nl.fietsweer.app.data.Leg
 import nl.fietsweer.app.data.ModelSeries
-import nl.fietsweer.app.data.Place
 import nl.fietsweer.app.data.RouteForecast
 import nl.fietsweer.app.data.Settings
 import java.util.Calendar
@@ -17,22 +16,15 @@ enum class WindRelation { HEAD, CROSS, TAIL }
 
 data class ModelVerdict(val id: String, val label: String, val wet: Boolean, val mm: Double)
 
-/**
- * Everything known about one specific ride: leaving at [departureMs], riding
- * [durationMin] minutes along the route in the given direction.
- */
 data class RideAssessment(
     val leg: Leg,
     val departureMs: Long,
     val arrivalMs: Long,
     val durationMin: Int,
-    /** What the ride would take with no wind at all, for comparison. */
     val stillAirDurationMin: Int,
-    /** Average ground speed over the ride, wind included. */
     val paceKmh: Double,
     val distanceKm: Double,
 
-    /** 0..1 blended chance of getting wet on the way. */
     val risk: Double,
     val modelsWetCount: Int,
     val modelCount: Int,
@@ -42,7 +34,7 @@ data class RideAssessment(
     val perModel: List<ModelVerdict>,
     val avgMm: Double,
     val maxMm: Double,
-    /** 0 = models split down the middle, 1 = unanimous. */
+    /** 0 = models split, 1 = unanimous. */
     val agreement: Double,
     val night: Boolean,
 
@@ -59,10 +51,8 @@ data class RideAssessment(
     val windRelation: WindRelation,
     val travelBearing: Double
 ) {
-    val modelsWetFraction: Double get() = if (modelCount == 0) 0.0 else modelsWetCount.toDouble() / modelCount
     val riskPercent: Int get() = (risk * 100).roundToInt()
 
-    /** Minutes the wind adds (positive) or saves (negative) on this ride. */
     val windMinutes: Int get() = durationMin - stillAirDurationMin
 }
 
@@ -77,16 +67,11 @@ data class DryWindow(
     val to: RideAssessment get() = slots.last()
 }
 
-/**
- * Turns a [RouteForecast] into verdicts. Ported from the original web page and
- * extended with temperature, wind chill on the bike and both ride directions.
- */
 class Engine(private val fc: RouteForecast, private val settings: Settings) {
 
     companion object {
         const val GRID_MIN = 15
         const val STEP_MIN = 5
-        /** At or below this blended risk we are happy to call it dry. */
         const val DRY_RISK = 0.22
 
         fun rideDurationMin(distanceKm: Double, speedKmh: Double): Int {
@@ -96,10 +81,7 @@ class Engine(private val fc: RouteForecast, private val settings: Settings) {
 
         fun minutesToDuration(minutes: Double): Int = minutes.roundToInt().coerceIn(3, 360)
 
-        /**
-         * JAG/TI wind chill. Below 4.8 km/h of air movement it is not defined,
-         * and there the difference is negligible anyway.
-         */
+        // JAG/TI wind chill; undefined below 4.8 km/h.
         fun windChill(tempC: Double, windKmh: Double): Double {
             if (windKmh < 4.8) return tempC
             val f = windKmh.pow(0.16)
@@ -107,17 +89,11 @@ class Engine(private val fc: RouteForecast, private val settings: Settings) {
         }
     }
 
-    /** The ride with no wind; every assessment adjusts from here. */
     val stillAirDurationMin: Int = rideDurationMin(fc.distanceKm, settings.speedKmh.toDouble())
     private val npoints = fc.points.size
 
     private val bearingOutbound = Geo.bearingDeg(fc.home.toLatLon(), fc.work.toLatLon())
     private val bearingReturn = (bearingOutbound + 180.0) % 360.0
-
-    fun placeFor(leg: Leg): Pair<Place, Place> =
-        if (leg == Leg.OUTBOUND) fc.home to fc.work else fc.work to fc.home
-
-    // -------------------------------------------------------------- sampling
 
     private class Sample(val minute: Int, val pointIndex: Int)
 
@@ -131,8 +107,7 @@ class Engine(private val fc: RouteForecast, private val settings: Settings) {
             out += Sample(m, idx)
             m += STEP_MIN
         }
-        // Always judge the final stretch, even when the ride is not a round
-        // number of five-minute steps.
+        // Always include the final stretch.
         if (out.isEmpty() || out.last().minute < durationMin) {
             val idx = if (leg == Leg.RETURN) 0 else npoints - 1
             out += Sample(durationMin, idx)
@@ -140,7 +115,7 @@ class Engine(private val fc: RouteForecast, private val settings: Settings) {
         return out
     }
 
-    /** Index of the newest entry at or before [t], or -1 when out of range. */
+    /** Newest index at or before [t], or -1. */
     private fun indexAt(times: LongArray, t: Long): Int {
         if (times.isEmpty() || t < times[0]) return -1
         var lo = 0
@@ -159,12 +134,7 @@ class Engine(private val fc: RouteForecast, private val settings: Settings) {
         return a[i]
     }
 
-    // -------------------------------------------------------------- assessing
-
-    /**
-     * Mean head- and crosswind at bike height over a ride of [minutes], as
-     * components along the direction of travel.
-     */
+    /** Mean (head, cross) wind at bike height over the ride. */
     private fun windOver(departureMs: Long, minutes: Int, bearing: Double): Pair<Double, Double>? {
         var headSum = 0.0
         var crossSum = 0.0
@@ -186,11 +156,7 @@ class Engine(private val fc: RouteForecast, private val settings: Settings) {
         return if (count == 0) null else (headSum / count) to (crossSum / count)
     }
 
-    /**
-     * How long the ride takes leaving at [departureMs]. The wind during the ride
-     * depends on how long the ride is, so the estimate is refined once: a first
-     * pass over the still-air window, a second over the window that implies.
-     */
+    // The wind depends on how long the ride takes and vice versa, so refine once.
     private fun durationFor(departureMs: Long, bearing: Double): Int {
         if (!settings.windAdjustSpeed) return stillAirDurationMin
         var minutes = stillAirDurationMin
@@ -210,7 +176,6 @@ class Engine(private val fc: RouteForecast, private val settings: Settings) {
         val samples = samples(leg, durationMin)
         val arrival = departureMs + durationMin * 60_000L
 
-        // 1. deterministic models -------------------------------------------
         val verdicts = ArrayList<ModelVerdict>(fc.models.size)
         var wetCount = 0
         var mmSum = 0.0
@@ -227,8 +192,7 @@ class Engine(private val fc: RouteForecast, private val settings: Settings) {
                 val v = arr[i]
                 if (!v.isNaN()) { any = true; if (v > peak) peak = v }
             }
-            // The short-range models stop after a day or two; one that has
-            // nothing to say about this ride must not be counted as a dry vote.
+            // Short-range models run out after a day or two; no data is not a dry vote.
             if (!any) continue
             val wet = peak >= settings.wetThreshold
             verdicts += ModelVerdict(m.id, m.label, wet, peak)
@@ -239,7 +203,6 @@ class Engine(private val fc: RouteForecast, private val settings: Settings) {
         val n = verdicts.size
         val modelsWet = if (n == 0) 0.0 else wetCount.toDouble() / n
 
-        // 2. ensemble members give a real probability -------------------------
         var ensembleProb: Double? = null
         if (fc.ensMembers.isNotEmpty() && fc.ensTimes.isNotEmpty()) {
             val idx = ArrayList<Int>()
@@ -260,14 +223,13 @@ class Engine(private val fc: RouteForecast, private val settings: Settings) {
                     }
                     if (!any) continue
                     total++
-                    // members are hourly totals, so the per-quarter threshold doubles
+                    // Hourly totals, while the threshold is per quarter hour.
                     if (peak >= settings.wetThreshold * 2) hit++
                 }
                 if (total > 0) ensembleProb = hit.toDouble() / total
             }
         }
 
-        // 3. radar nowcast, only when it covers most of the ride ---------------
         var radarRisk: Double? = null
         var radarMax = 0.0
         if (fc.radar.isNotEmpty()) {
@@ -284,8 +246,7 @@ class Engine(private val fc: RouteForecast, private val settings: Settings) {
                 if (best != null && bestDelta <= 600_000L) {
                     covered++
                     if (best > radarMax) radarMax = best
-                    // a radar value is mm/h; compare against the quarter-hour rule
-                    if (best / 4.0 >= settings.wetThreshold) hits++
+                    if (best / 4.0 >= settings.wetThreshold) hits++ // mm/h vs. per-quarter threshold
                 }
             }
             if (covered >= Math.ceil(samples.size * 0.6).toInt()) {
@@ -293,7 +254,7 @@ class Engine(private val fc: RouteForecast, private val settings: Settings) {
             }
         }
 
-        // 4. blend: radar rules the next hour, models rule the rest ------------
+        // Radar rules the next hour, models the rest.
         val leadMin = (departureMs - System.currentTimeMillis()) / 60_000.0
         var weighted = 0.0
         var weightSum = 0.0
@@ -302,7 +263,6 @@ class Engine(private val fc: RouteForecast, private val settings: Settings) {
         if (n > 0) { weighted += modelsWet * 1.0; weightSum += 1.0 }
         val risk = if (weightSum == 0.0) modelsWet else weighted / weightSum
 
-        // 5. temperature and wind along the ride -------------------------------
         var temp = Double.NaN
         var apparent = Double.NaN
         var wind = Double.NaN
@@ -384,11 +344,7 @@ class Engine(private val fc: RouteForecast, private val settings: Settings) {
         return value(fc.hourly, fc.hourTimes, key, t)
     }
 
-    /**
-     * Riding generates its own wind. Blend the ambient wind down to bike height,
-     * add the rider's own speed, and charge the extra chill to the felt
-     * temperature that Open-Meteo already corrected for humidity and sun.
-     */
+    // Adds the chill of the rider's own airspeed on top of Open-Meteo's apparent temperature.
     fun bikeFeel(
         tempC: Double,
         apparentC: Double,
@@ -413,17 +369,10 @@ class Engine(private val fc: RouteForecast, private val settings: Settings) {
         return wind10Kmh * cos(rel)
     }
 
-    // ------------------------------------------------------------- departures
-
-    /**
-     * Walks every 15-minute departure slot from now until [horizonMin] minutes
-     * ahead, skipping slots the models can no longer cover.
-     */
     fun scan(leg: Leg, horizonMin: Int = 24 * 60, fromMs: Long = System.currentTimeMillis()): List<RideAssessment> {
         if (!fc.hasModels) return emptyList()
         val out = ArrayList<RideAssessment>()
-        // A headwind can stretch a ride well past its still-air length, so leave
-        // the models room to cover it.
+        // Leave room for a headwind doubling the ride.
         val need = Math.ceil(stillAirDurationMin * 2.0 / GRID_MIN).toInt() + 1
         val last = fc.modelTimes.size - need
         for (i in 0 until last) {
@@ -435,11 +384,6 @@ class Engine(private val fc: RouteForecast, private val settings: Settings) {
         return out
     }
 
-    /**
-     * Every departure slot on the grid inside [fromMs]..[untilMs]. Used for the
-     * slack around a planned departure, where the question is not "when today"
-     * but "how much better does it get if I wait a bit".
-     */
     fun scanWindow(leg: Leg, fromMs: Long, untilMs: Long): List<RideAssessment> {
         if (!fc.hasModels || untilMs < fromMs) return emptyList()
         val need = Math.ceil(stillAirDurationMin * 2.0 / GRID_MIN).toInt() + 1
@@ -454,10 +398,6 @@ class Engine(private val fc: RouteForecast, private val settings: Settings) {
         return out
     }
 
-    /**
-     * Mean modelled rainfall for each 15-minute step of one ride, used for the
-     * little bar strip under a ride card.
-     */
     fun ridePrecipProfile(departureMs: Long, leg: Leg, durationMin: Int): List<Double> {
         if (fc.models.isEmpty()) return emptyList()
         val steps = (durationMin / GRID_MIN) + 1
@@ -492,8 +432,7 @@ class Engine(private val fc: RouteForecast, private val settings: Settings) {
         }
         return raw.map { group ->
             val minutes = group.size * GRID_MIN
-            // A couple of percentage points are not worth waiting for, so the
-            // earliest slot wins unless a later one is clearly better.
+            // Earliest slot wins unless a later one is clearly better.
             val best = group.reduce { a, b -> if (b.risk < a.risk - 0.05) b else a }
             val avg = group.sumOf { it.risk } / group.size
             val leadHours = (group.first().departureMs - System.currentTimeMillis()) / 3_600_000.0

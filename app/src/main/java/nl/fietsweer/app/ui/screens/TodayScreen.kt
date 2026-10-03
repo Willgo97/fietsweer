@@ -103,9 +103,7 @@ fun TodayScreen(
 
     val fc = ui.forecast
     val engine = remember(fc, settings) { fc?.let { Engine(it, settings) } }
-    // Each leg drops off this screen once its slack has run out, so after the
-    // morning ride the card on show is already tomorrow's — or, on a Friday,
-    // Monday's: only days some alert fires on count as riding days.
+    // Each leg rolls over to its next riding day once its slack has passed.
     val planned = remember(settings, nowTick) {
         Commute.plannedRides(settings, Coverage.BOTH, nowTick, alertDaysOnly = true)
     }
@@ -166,8 +164,7 @@ fun TodayScreen(
         }
 
         if (!fc.hasModels) {
-            // Without models there is no verdict to give, and showing a green
-            // "nothing needed" card here would be a confident lie.
+            // No models, no verdict: a green "nothing needed" card would be a lie.
             item {
                 InfoCard(
                     title = if (fc.allSourcesFailed) t.updateFailedTitle else t.noModelsTitle,
@@ -238,8 +235,6 @@ private fun legendName(r: RideAssessment, today: Boolean): String {
     return if (today) name else "$name ${fmt.dayWord(r.departureMs)}"
 }
 
-// ------------------------------------------------------------------ hero card
-
 @Composable
 private fun HeroCard(advice: Advice, current: Map<String, Double>) {
     val t = AppTheme.txt
@@ -300,9 +295,6 @@ private fun HeroCard(advice: Advice, current: Map<String, Double>) {
                     )
                 }
                 val chips = AdviceText.chips(advice, t)
-                // What it is doing outside right now sits in the same card, with
-                // what to bring alongside it: the advice and the thermometer
-                // answer one question together.
                 if (hasNow(current)) {
                     Spacer(Modifier.height(14.dp))
                     NowStrip(current) {
@@ -335,9 +327,7 @@ private fun HeroChip(label: String, strong: Boolean, icon: ImageVector?) {
             Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // The chip sits on the coloured hero, so its ink is fixed rather
-            // than taken from the scheme: a white pill needs dark text in both
-            // light and dark mode.
+            // Fixed ink: the chip sits on the coloured hero in both themes.
             val fg = if (strong) HERO_CHIP_INK else Color.White
             if (icon != null) {
                 Icon(icon, null, tint = fg, modifier = Modifier.size(15.dp))
@@ -362,8 +352,6 @@ private fun iconFor(label: String, t: nl.fietsweer.app.domain.Txt): ImageVector?
     t.chipHot -> Icons.Rounded.WaterDrop
     else -> null
 }
-
-// -------------------------------------------------------------- now, in-hero
 
 private fun hasNow(current: Map<String, Double>): Boolean =
     current["temperature_2m"] != null || current["wind_speed_10m"] != null
@@ -426,7 +414,6 @@ private fun NowStrip(
                     )
                 }
             }
-            // Pills stack on the right, one above the other when there are more.
             Column(
                 horizontalAlignment = Alignment.End,
                 verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -436,13 +423,6 @@ private fun NowStrip(
     }
 }
 
-// ------------------------------------------------------------------ ride card
-
-/**
- * Which day a ride falls on, spelled out. Once a leg has rolled over you are
- * looking at tomorrow while standing in today's weather, so the day cannot be
- * left to a footnote.
- */
 @Composable
 private fun DayBadge(ms: Long) {
     val fmt = AppTheme.fmt
@@ -485,8 +465,7 @@ private fun RideCard(r: RideAssessment, engine: Engine?, onOpen: () -> Unit) {
     val riskColor = accents.forRisk(r.risk)
     val today = fmt.isToday(r.departureMs)
 
-    // Kept low on purpose: with two rides, the hero and the chart on one
-    // screen, every card that grows pushes the rest out of sight.
+    // Kept low on purpose: every card that grows pushes the rest off screen.
     SectionCard(
         modifier = Modifier.clickable(onClick = onOpen),
         contentPadding = 14,
@@ -507,7 +486,6 @@ private fun RideCard(r: RideAssessment, engine: Engine?, onOpen: () -> Unit) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(bottom = 2.dp)
             )
-            // What the wind adds to (or takes off) the still-air ride.
             if (abs(r.windMinutes) >= 2) {
                 val slower = r.windMinutes > 0
                 Spacer(Modifier.width(6.dp))
@@ -612,8 +590,6 @@ private fun MiniStat(
     }
 }
 
-// ------------------------------------------------------------ best departure
-
 @Composable
 private fun BestMomentCard(
     engine: Engine?,
@@ -656,15 +632,13 @@ private fun BestMomentCard(
     }
 }
 
-/** The slack around one planned departure, scored quarter by quarter. */
 @Composable
 private fun DepartureWindow(engine: Engine, p: Planned, nowTick: Long) {
     val t = AppTheme.txt
     val fmt = AppTheme.fmt
     val accents = AppTheme.accents
 
-    // Never offer a departure that has already gone by; round up to the grid so
-    // the list only changes once a quarter rather than once a minute.
+    // Round up to the grid so the list changes once a quarter, not every minute.
     val grid = Engine.GRID_MIN * 60_000L
     val from = maxOf(p.earliestMs, ((nowTick + grid - 1) / grid) * grid)
     val slots = remember(engine, p, from) {
@@ -686,9 +660,7 @@ private fun DepartureWindow(engine: Engine, p: Planned, nowTick: Long) {
         return
     }
 
-    // A couple of percentage points are not worth shifting your day for, so of
-    // everything within reach of the driest slot the one nearest the time you
-    // actually planned wins. Only a clearly better slot pulls you away from it.
+    // Prefer the slot nearest the planned time unless another is clearly drier.
     val floor = slots.minOf { it.risk }
     val best = slots.filter { it.risk <= floor + 0.05 }
         .minBy { abs(it.departureMs - p.departureMs) }
@@ -747,7 +719,6 @@ private fun DepartureWindow(engine: Engine, p: Planned, nowTick: Long) {
     }
 }
 
-/** One block per quarter of the window, the chosen one at full strength. */
 @Composable
 private fun DepartureStrip(slots: List<RideAssessment>, best: RideAssessment) {
     val accents = AppTheme.accents
@@ -778,8 +749,6 @@ private fun DepartureStrip(slots: List<RideAssessment>, best: RideAssessment) {
         }
     }
 }
-
-// ---------------------------------------------------------------- chart data
 
 private fun buildChartPoints(
     fc: nl.fietsweer.app.data.RouteForecast,

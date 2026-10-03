@@ -66,7 +66,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         days = setOf(1, 2, 3, 4, 5)
     )
 
-    /** Builds the verdict from whatever forecast is on screen and posts it. */
     fun sendTestNotification(onDone: (Boolean) -> Unit) {
         viewModelScope.launch {
             val s = prefs.current

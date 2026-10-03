@@ -1,6 +1,6 @@
 package nl.fietsweer.app.domain
 
-/** WMO weather interpretation codes, grouped into what a cyclist cares about. */
+/** WMO codes, grouped into what a cyclist cares about. */
 enum class Sky { CLEAR, PARTLY, CLOUDY, FOG, DRIZZLE, RAIN, SHOWERS, SNOW, THUNDER, UNKNOWN }
 
 object WeatherCode {

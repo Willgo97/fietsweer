@@ -1,7 +1,5 @@
 package nl.fietsweer.app.ui.components
 
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -13,7 +11,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
@@ -29,7 +26,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
@@ -42,64 +38,6 @@ import nl.fietsweer.app.ui.theme.AppTheme
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.getValue
-
-// ------------------------------------------------------------------ risk ring
-
-@Composable
-fun RiskRing(
-    risk: Double,
-    color: Color,
-    modifier: Modifier = Modifier,
-    diameter: Int = 92,
-    caption: String? = null
-) {
-    val target = risk.coerceIn(0.0, 1.0).toFloat()
-    val animated by animateFloatAsState(target, tween(700), label = "ring")
-    val track = MaterialTheme.colorScheme.surfaceContainerHighest
-    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(Modifier.size(diameter.dp), contentAlignment = Alignment.Center) {
-            Canvas(Modifier.fillMaxSize()) {
-                val stroke = size.minDimension * 0.11f
-                val inset = stroke / 2
-                drawArc(
-                    color = track,
-                    startAngle = 0f, sweepAngle = 360f, useCenter = false,
-                    topLeft = Offset(inset, inset),
-                    size = Size(size.width - stroke, size.height - stroke),
-                    style = Stroke(width = stroke, cap = StrokeCap.Round)
-                )
-                if (animated > 0.004f) {
-                    drawArc(
-                        color = color,
-                        startAngle = -90f, sweepAngle = 360f * animated, useCenter = false,
-                        topLeft = Offset(inset, inset),
-                        size = Size(size.width - stroke, size.height - stroke),
-                        style = Stroke(width = stroke, cap = StrokeCap.Round)
-                    )
-                }
-            }
-            Text(
-                "${(risk * 100).roundToInt()}%",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-        }
-        if (caption != null) {
-            Spacer(Modifier.height(5.dp))
-            Text(
-                caption,
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Normal,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
-
-// -------------------------------------------------------------- 24 hour chart
 
 data class ChartPoint(val timeMs: Long, val precipMm: Double, val tempC: Double)
 data class ChartBand(val startMs: Long, val endMs: Long, val color: Color, val label: String)
@@ -278,13 +216,6 @@ fun PrecipTempChart(
     }
 }
 
-// ---------------------------------------------------------- departure ribbon
-
-/**
- * The whole 24-hour departure outlook as one continuous ribbon. Fitting it to
- * the width beats a scrollable strip: the shape of the day is the point, and
- * the tap position maps straight onto a slot so the thin cells stay usable.
- */
 @Composable
 fun DepartureTimeline(
     slots: List<RideAssessment>,
@@ -383,12 +314,6 @@ fun DepartureTimeline(
     }
 }
 
-// ------------------------------------------------------------- model matrix
-
-/**
- * One row per weather service, one column per departure slot. Drawn rather than
- * laid out so all 24 hours fit the screen without a scroll container.
- */
 @Composable
 fun ModelMatrix(
     slots: List<RideAssessment>,
@@ -478,82 +403,6 @@ fun ModelMatrix(
         }
     }
 }
-
-// ----------------------------------------------------------------- wind dial
-
-@Composable
-fun WindDial(
-    travelBearing: Double,
-    windFromDeg: Double,
-    windKmh: Double,
-    modifier: Modifier = Modifier,
-    diameter: Int = 76
-) {
-    val ring = MaterialTheme.colorScheme.surfaceContainerHighest
-    val bike = MaterialTheme.colorScheme.primary
-    val windColor = AppTheme.accents.cold
-    val fmt = AppTheme.fmt
-
-    Box(modifier.size(diameter.dp), contentAlignment = Alignment.Center) {
-        Canvas(Modifier.fillMaxSize()) {
-            val r = size.minDimension / 2
-            val c = Offset(size.width / 2, size.height / 2)
-            drawCircle(ring, radius = r, center = c, style = Stroke(width = r * 0.16f))
-
-            if (!travelBearing.isNaN()) {
-                drawArrow(c, r * 0.72f, travelBearing, bike, r * 0.10f)
-            }
-            if (!windFromDeg.isNaN() && !windKmh.isNaN()) {
-                // the wind blows towards bearing + 180
-                drawArrow(c, r * 0.52f, (windFromDeg + 180.0) % 360.0, windColor, r * 0.09f)
-            }
-        }
-        Text(
-            if (windKmh.isNaN()) "–" else "${windKmh.roundToInt()}",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 2.dp)
-        )
-        Text(
-            fmt.compass(windFromDeg),
-            style = MaterialTheme.typography.labelSmall,
-            fontSize = 9.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = 1.dp)
-        )
-    }
-}
-
-private fun DrawScope.drawArrow(
-    center: Offset,
-    length: Float,
-    bearingDeg: Double,
-    color: Color,
-    strokeWidth: Float
-) {
-    val rad = Math.toRadians(bearingDeg - 90.0)
-    val dx = kotlin.math.cos(rad).toFloat()
-    val dy = kotlin.math.sin(rad).toFloat()
-    val tip = Offset(center.x + dx * length, center.y + dy * length)
-    val tail = Offset(center.x - dx * length * 0.55f, center.y - dy * length * 0.55f)
-    drawLine(color, tail, tip, strokeWidth = strokeWidth, cap = StrokeCap.Round)
-    // arrow head
-    val headLen = length * 0.34f
-    for (side in listOf(-1f, 1f)) {
-        val a = Math.toRadians(bearingDeg - 90.0 + side * 148.0)
-        drawLine(
-            color, tip,
-            Offset(tip.x + kotlin.math.cos(a).toFloat() * headLen, tip.y + kotlin.math.sin(a).toFloat() * headLen),
-            strokeWidth = strokeWidth, cap = StrokeCap.Round
-        )
-    }
-}
-
-// --------------------------------------------------------------- sparkline
 
 @Composable
 fun RainSparkline(

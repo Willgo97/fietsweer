@@ -34,7 +34,6 @@ data class Alert(
     val days: Set<Int> = setOf(1, 2, 3, 4, 5),
     val coverage: Coverage = Coverage.BOTH,
     val enabled: Boolean = true,
-    /** Only fire when there is actually something to bring. */
     val onlyWhenNeeded: Boolean = false
 ) {
     val minutesOfDay: Int get() = hour * 60 + minute
@@ -50,27 +49,20 @@ data class Settings(
     val returnHour: Int = 17,
     val returnMinute: Int = 30,
 
-    /**
-     * How far either side of a planned departure the ride is still on the
-     * table. The late end doubles as the ride's shelf life: once it has passed,
-     * Today drops that ride and shows the next day's instead.
-     */
+    // Slack around a planned departure; the late end is also how long Today keeps showing the ride.
     val outboundEarlyMin: Int = 0,
     val outboundLateMin: Int = 60,
     val returnEarlyMin: Int = 60,
     val returnLateMin: Int = 60,
 
-    /** Cycling pace in km/h **in still air** — the wind is applied on top. */
+    /** In still air; the wind is applied on top. */
     val speedKmh: Int = 19,
-    /** Let head- and tailwind change the speed, and with it the ride time. */
     val windAdjustSpeed: Boolean = true,
-    /** mm per 15 minutes above which a model counts as "wet". */
+    /** mm per 15 minutes. */
     val wetThreshold: Double = 0.2,
-    /** Percentage of rain risk at which the rain jacket becomes a yes. */
     val rainJacketPercent: Int = 30,
-    /** Bike-feel temperature below which a vest replaces short sleeves. */
+    /** Bike-feel temperatures. */
     val vestBelow: Double = 17.0,
-    /** Bike-feel temperature below which a vest is no longer enough. */
     val winterCoatBelow: Double = 6.0,
 
     val useRadar: Boolean = true,
@@ -89,17 +81,14 @@ data class Settings(
     fun hourFor(leg: Leg): Int = if (leg == Leg.OUTBOUND) outboundHour else returnHour
     fun minuteFor(leg: Leg): Int = if (leg == Leg.OUTBOUND) outboundMinute else returnMinute
 
-    /** Minutes you could leave ahead of plan, clamped to something sane. */
     fun earlyMinFor(leg: Leg): Int =
         (if (leg == Leg.OUTBOUND) outboundEarlyMin else returnEarlyMin).coerceIn(0, FLEX_MAX_MIN)
 
-    /** Minutes you could still leave after plan, and how long the ride stays. */
     fun lateMinFor(leg: Leg): Int =
         (if (leg == Leg.OUTBOUND) outboundLateMin else returnLateMin).coerceIn(0, FLEX_MAX_MIN)
 }
 
-/** Upper bound on the departure slack, in minutes. */
 const val FLEX_MAX_MIN = 180
 
-/** Used until the user has picked anything: roughly the centre of the country. */
+/** Centre of the Netherlands, until the user picks a place. */
 val LatLonFallback = LatLon(52.1326, 5.2913)
