@@ -7,11 +7,6 @@ import android.content.pm.PackageManager
 import android.location.LocationManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,61 +16,74 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.MyLocation
 import androidx.compose.material.icons.rounded.Remove
-import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import nl.fietsweer.app.data.CenterOfNetherlands
 import nl.fietsweer.app.data.Geocoder
 import nl.fietsweer.app.data.Place
-import nl.fietsweer.app.domain.Geo
+import nl.fietsweer.app.data.Settings
 import nl.fietsweer.app.domain.LatLon
+import nl.fietsweer.app.ui.components.ButtonLabel
+import nl.fietsweer.app.ui.components.SectionLabel
 import nl.fietsweer.app.ui.theme.AppTheme
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.getValue
+
+enum class RouteEnd { HOME, WORK }
 
 @Composable
-fun LocationPickerScreen(
+fun RouteEndPicker(
+    end: RouteEnd,
+    title: String,
+    settings: Settings,
+    mapTheme: MapTheme,
+    onCancel: () -> Unit,
+    onConfirm: (Place) -> Unit
+) {
+    val accents = AppTheme.accents
+    val initial = if (end == RouteEnd.HOME) settings.home else settings.work
+    LocationPickerScreen(
+        title = title,
+        initial = initial,
+        fallback = (initial ?: settings.home)?.toLatLon() ?: CenterOfNetherlands,
+        mapTheme = mapTheme,
+        accent = if (end == RouteEnd.HOME) accents.dry else accents.rain,
+        onCancel = onCancel,
+        onConfirm = onConfirm
+    )
+}
+
+@Composable
+private fun LocationPickerScreen(
     title: String,
     initial: Place?,
     fallback: LatLon,
@@ -84,7 +92,7 @@ fun LocationPickerScreen(
     onCancel: () -> Unit,
     onConfirm: (Place) -> Unit
 ) {
-    val t = AppTheme.txt
+    val strings = AppTheme.strings
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val keyboard = LocalSoftwareKeyboardController.current
@@ -111,11 +119,8 @@ fun LocationPickerScreen(
         if (dragTick == 0) return@LaunchedEffect
         resolving = true
         delay(700)
-        val p = Geocoder.reverse(camera.center, t.locale.language)
-        resolved = p ?: Place(
-            name = "%.4f, %.4f".format(java.util.Locale.US, camera.lat, camera.lon),
-            lat = camera.lat, lon = camera.lon
-        )
+        val place = Geocoder.reverse(camera.center, strings.locale.language)
+        resolved = place ?: camera.centerPlace()
         resolving = false
     }
 
@@ -123,11 +128,11 @@ fun LocationPickerScreen(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { granted ->
         if (granted.values.any { it }) {
-            useLastLocation(context) { p ->
-                if (p != null) { camera.moveTo(p, 16f); dragTick++ }
-                else message = t.locationUnavailable
+            useLastLocation(context) { location ->
+                if (location != null) { camera.moveTo(location, 16f); dragTick++ }
+                else message = strings.locationUnavailable
             }
-        } else message = t.locationDenied
+        } else message = strings.locationDenied
     }
 
     Box(Modifier.fillMaxSize()) {
@@ -157,129 +162,49 @@ fun LocationPickerScreen(
                 .windowInsetsPadding(WindowInsets.statusBars)
                 .padding(12.dp)
         ) {
-            Surface(
-                shape = RoundedCornerShape(28.dp),
-                color = MaterialTheme.colorScheme.surface,
-                shadowElevation = 6.dp,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = onCancel) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, t.back)
-                    }
-                    OutlinedTextField(
-                        value = query,
-                        onValueChange = { v ->
-                            query = v
-                            searchJob?.cancel()
-                            if (v.trim().length < 2) {
-                                results = emptyList(); showResults = false
-                            } else {
-                                searchJob = scope.launch {
-                                    delay(280)
-                                    searching = true
-                                    results = runCatching {
-                                        Geocoder.search(v, camera.center, t.locale.language)
-                                    }.getOrDefault(emptyList())
-                                    searching = false
-                                    showResults = true
-                                }
-                            }
-                        },
-                        placeholder = { Text(t.searchPlace) },
-                        singleLine = true,
-                        modifier = Modifier.weight(1f),
-                        colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color.Transparent,
-                            unfocusedBorderColor = Color.Transparent
-                        ),
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                        keyboardActions = KeyboardActions(onSearch = {
-                            keyboard?.hide()
-                            results.firstOrNull()?.let {
-                                camera.moveTo(it.toLatLon(), 14f)
-                                resolved = it
-                                showResults = false
-                            }
-                        })
-                    )
-                    if (searching) {
-                        CircularProgressIndicator(
-                            strokeWidth = 2.dp,
-                            modifier = Modifier
-                                .size(18.dp)
-                                .padding(end = 0.dp)
-                        )
-                        Spacer(Modifier.width(12.dp))
-                    } else if (query.isNotEmpty()) {
-                        IconButton(onClick = { query = ""; results = emptyList(); showResults = false }) {
-                            Icon(Icons.Rounded.Close, t.close)
-                        }
+            PlaceSearchField(
+                query = query,
+                searching = searching,
+                onQueryChange = { text ->
+                    query = text
+                    searchJob?.cancel()
+                    if (text.trim().length < 2) {
+                        results = emptyList(); showResults = false
                     } else {
-                        Icon(
-                            Icons.Rounded.Search, null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(end = 16.dp)
-                        )
-                    }
-                }
-            }
-
-            AnimatedVisibility(showResults, enter = fadeIn(), exit = fadeOut()) {
-                Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = MaterialTheme.colorScheme.surface,
-                    shadowElevation = 6.dp,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp)
-                        .heightIn(max = 280.dp)
-                ) {
-                    LazyColumn {
-                        if (results.isEmpty()) {
-                            item {
-                                Text(
-                                    t.searchNoResults,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp)
-                                )
-                            }
-                        }
-                        items(results) { p ->
-                            Row(
-                                Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        keyboard?.hide()
-                                        camera.moveTo(p.toLatLon(), 14.5f)
-                                        resolved = p
-                                        showResults = false
-                                        query = p.name
-                                    }
-                                    .padding(horizontal = 18.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(Modifier.weight(1f)) {
-                                    Text(p.name, style = MaterialTheme.typography.bodyLarge)
-                                    if (p.detail.isNotBlank()) {
-                                        Text(
-                                            p.detail,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                }
-                                Text(
-                                    "${Geo.haversineKm(camera.center, p.toLatLon()).toInt()} km",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
+                        searchJob = scope.launch {
+                            delay(280)
+                            searching = true
+                            results = runCatching {
+                                Geocoder.search(text, camera.center, strings.locale.language)
+                            }.getOrDefault(emptyList())
+                            searching = false
+                            showResults = true
                         }
                     }
+                },
+                onClear = { query = ""; results = emptyList(); showResults = false },
+                onSearch = {
+                    keyboard?.hide()
+                    results.firstOrNull()?.let {
+                        camera.moveTo(it.toLatLon(), 14f)
+                        resolved = it
+                        showResults = false
+                    }
+                },
+                onBack = onCancel
+            )
+            PlaceSearchResults(
+                visible = showResults,
+                results = results,
+                origin = camera.center,
+                onPick = { place ->
+                    keyboard?.hide()
+                    camera.moveTo(place.toLatLon(), 14.5f)
+                    resolved = place
+                    showResults = false
+                    query = place.name
                 }
-            }
+            )
         }
 
         Column(
@@ -302,10 +227,10 @@ fun LocationPickerScreen(
                     context, Manifest.permission.ACCESS_COARSE_LOCATION
                 ) == PackageManager.PERMISSION_GRANTED
                 if (fine || coarse) {
-                    useLastLocation(context) { p ->
-                        if (p != null) {
-                            camera.moveTo(p, 16f); dragTick++
-                        } else message = t.locationUnavailable
+                    useLastLocation(context) { location ->
+                        if (location != null) {
+                            camera.moveTo(location, 16f); dragTick++
+                        } else message = strings.locationUnavailable
                     }
                 } else {
                     locationPermission.launch(
@@ -327,22 +252,18 @@ fun LocationPickerScreen(
             shadowElevation = 12.dp
         ) {
             Column(Modifier.padding(20.dp)) {
-                Text(
-                    title.uppercase(),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                SectionLabel(title)
                 Spacer(Modifier.height(4.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(
-                            resolved?.name ?: t.dragMapHint,
+                            resolved?.name ?: strings.dragMapHint,
                             style = MaterialTheme.typography.titleLarge,
                             maxLines = 1
                         )
                         Text(
                             message ?: resolved?.detail?.takeIf { it.isNotBlank() }
-                            ?: "%.4f, %.4f".format(java.util.Locale.US, camera.lat, camera.lon),
+                            ?: camera.centerPlace().name,
                             style = MaterialTheme.typography.bodySmall,
                             color = if (message != null) MaterialTheme.colorScheme.error
                             else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -356,18 +277,12 @@ fun LocationPickerScreen(
                 Spacer(Modifier.height(14.dp))
                 Button(
                     onClick = {
-                        val p = resolved ?: Place(
-                            "%.4f, %.4f".format(java.util.Locale.US, camera.lat, camera.lon),
-                            camera.lat, camera.lon
-                        )
-                        onConfirm(p.copy(lat = camera.lat, lon = camera.lon))
+                        onConfirm((resolved ?: camera.centerPlace()).copy(lat = camera.lat, lon = camera.lon))
                     },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp)
                 ) {
-                    Icon(Icons.Rounded.Check, null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text(t.confirmLocation)
+                    ButtonLabel(strings.confirmLocation, Icons.Rounded.Check)
                 }
                 Spacer(Modifier.height(8.dp))
                 Text(
@@ -380,62 +295,22 @@ fun LocationPickerScreen(
     }
 }
 
-@Composable
-private fun MapButton(icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
-    Surface(
-        shape = CircleShape,
-        color = MaterialTheme.colorScheme.surface,
-        shadowElevation = 4.dp,
-        modifier = Modifier.size(44.dp)
-    ) {
-        IconButton(onClick = onClick) {
-            Icon(icon, null, tint = MaterialTheme.colorScheme.onSurface)
-        }
-    }
-}
-
-@Composable
-private fun CenterPin(accent: Color) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(
-            Modifier
-                .size(30.dp)
-                .background(accent, CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Box(
-                Modifier
-                    .size(11.dp)
-                    .background(Color.White, CircleShape)
-            )
-        }
-        Box(
-            Modifier
-                .width(3.dp)
-                .height(20.dp)
-                .background(accent)
-        )
-        Box(
-            Modifier
-                .size(7.dp)
-                .background(Color.Black.copy(alpha = 0.28f), CircleShape)
-        )
-    }
-}
+private fun MapCamera.centerPlace() =
+    Place("%.4f, %.4f".format(java.util.Locale.US, lat, lon), lat, lon)
 
 @SuppressLint("MissingPermission")
 private fun useLastLocation(context: Context, onResult: (LatLon?) -> Unit) {
-    val lm = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
-    if (lm == null) { onResult(null); return }
+    val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
+    if (locationManager == null) { onResult(null); return }
     val providers = listOf(
         LocationManager.GPS_PROVIDER,
         LocationManager.NETWORK_PROVIDER,
         LocationManager.PASSIVE_PROVIDER
     )
-    var best: android.location.Location? = null
-    for (p in providers) {
-        val loc = runCatching { lm.getLastKnownLocation(p) }.getOrNull() ?: continue
-        if (best == null || loc.time > best!!.time) best = loc
+    var newest: android.location.Location? = null
+    for (provider in providers) {
+        val location = runCatching { locationManager.getLastKnownLocation(provider) }.getOrNull() ?: continue
+        if (newest == null || location.time > newest!!.time) newest = location
     }
-    onResult(best?.let { LatLon(it.latitude, it.longitude) })
+    onResult(newest?.let { LatLon(it.latitude, it.longitude) })
 }

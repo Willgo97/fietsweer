@@ -4,47 +4,46 @@ import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import nl.fietsweer.app.data.Coverage
-import nl.fietsweer.app.data.Prefs
-import nl.fietsweer.app.data.Repository
+import nl.fietsweer.app.data.ForecastRepository
+import nl.fietsweer.app.data.SettingsStore
+import nl.fietsweer.app.domain.Commute
 import nl.fietsweer.app.domain.Engine
 import nl.fietsweer.app.domain.Jacket
-import nl.fietsweer.app.domain.Txt
+import nl.fietsweer.app.domain.Strings
+import nl.fietsweer.app.widget.WidgetUpdater
 
 class AlertWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
-        val prefs = Prefs.get(applicationContext)
-        prefs.reload()
-        val settings = prefs.current
-        val txt = Txt.of(settings.lang)
+        val store = SettingsStore.get(applicationContext)
+        store.reload()
+        val settings = store.current
+        val strings = Strings.of(settings.language)
 
-        if (!settings.ready) return Result.success()
+        if (!settings.hasRoute) return Result.success()
 
         val alertId = inputData.getString(AlertReceiver.EXTRA_ALERT_ID).orEmpty()
         val alert = settings.alerts.firstOrNull { it.id == alertId }
         val coverage = alert?.coverage ?: Coverage.BOTH
 
-        val forecast = Repository.fetchDirect(settings)
+        val forecast = ForecastRepository.fetchDirect(settings)
         if (forecast == null || !forecast.hasModels) {
             return if (runAttemptCount < 3) Result.retry() else {
-                Notifier.postProblem(applicationContext, txt, txt.updateFailedBody)
+                Notifier.postProblem(applicationContext, strings, strings.updateFailedBody)
                 Result.success()
             }
         }
 
         val engine = Engine(forecast, settings)
-        val rides = Commute.plannedRides(settings, coverage).map { (leg, at) ->
-            engine.assess(at, leg)
-        }
+        val rides = Commute.plannedRides(settings, coverage).map(engine::assess)
         val advice = Jacket.forRides(rides, settings)
 
         if (alert?.onlyWhenNeeded == true && !advice.anythingNeeded) {
             return Result.success()
         }
 
-        Notifier.postAdvice(applicationContext, alert, advice, txt)
-        prefs.update { it.copy(lastNotifiedAt = System.currentTimeMillis()) }
-        nl.fietsweer.app.widget.WidgetUpdater.publish(applicationContext, settings, forecast)
+        Notifier.postAdvice(applicationContext, alert, advice, strings)
+        WidgetUpdater.publish(applicationContext, settings, forecast)
         return Result.success()
     }
 }

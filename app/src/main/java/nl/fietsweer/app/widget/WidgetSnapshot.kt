@@ -4,53 +4,50 @@ import android.content.Context
 
 data class WidgetSnapshot(
     val headline: String,
-    val chips: String,
-    val leg1: String,
-    val leg2: String,
-    val stamp: String,
-    val accent: Int,
-    val savedAt: Long
+    val chipLine: String,
+    val firstLegLine: String,
+    val secondLegLine: String,
+    val updatedTime: String,
+    val accent: Int
 )
 
 object WidgetStore {
 
     private const val FILE = "widget_snapshot"
 
-    private fun prefs(context: Context) =
+    private fun preferences(context: Context) =
         context.applicationContext.getSharedPreferences(FILE, Context.MODE_PRIVATE)
 
     fun save(context: Context, snapshot: WidgetSnapshot) {
-        prefs(context).edit()
+        preferences(context).edit()
             .putString("headline", snapshot.headline)
-            .putString("chips", snapshot.chips)
-            .putString("leg1", snapshot.leg1)
-            .putString("leg2", snapshot.leg2)
-            .putString("stamp", snapshot.stamp)
+            .putString("chips", snapshot.chipLine)
+            .putString("leg1", snapshot.firstLegLine)
+            .putString("leg2", snapshot.secondLegLine)
+            .putString("stamp", snapshot.updatedTime)
             .putInt("accent", snapshot.accent)
-            .putLong("savedAt", snapshot.savedAt)
             .apply()
     }
 
     fun load(context: Context): WidgetSnapshot? {
-        val p = prefs(context)
-        val headline = p.getString("headline", null) ?: return null
+        val stored = preferences(context)
+        val headline = stored.getString("headline", null) ?: return null
         return WidgetSnapshot(
             headline = headline,
-            chips = p.getString("chips", "").orEmpty(),
-            leg1 = p.getString("leg1", "").orEmpty(),
-            leg2 = p.getString("leg2", "").orEmpty(),
-            stamp = p.getString("stamp", "").orEmpty(),
-            accent = p.getInt("accent", 0),
-            savedAt = p.getLong("savedAt", 0L)
+            chipLine = stored.getString("chips", "").orEmpty(),
+            firstLegLine = stored.getString("leg1", "").orEmpty(),
+            secondLegLine = stored.getString("leg2", "").orEmpty(),
+            updatedTime = stored.getString("stamp", "").orEmpty(),
+            accent = stored.getInt("accent", 0)
         )
     }
 
-    fun clear(context: Context) = prefs(context).edit().clear().apply()
+    fun clear(context: Context) = preferences(context).edit().clear().apply()
 
     // Separate from the snapshot time, so a failing fetch cannot retrigger itself in a loop.
-    fun lastAttempt(context: Context): Long = prefs(context).getLong("lastAttempt", 0L)
+    fun lastAttempt(context: Context): Long = preferences(context).getLong("lastAttempt", 0L)
 
-    fun markAttempt(context: Context, at: Long) {
-        prefs(context).edit().putLong("lastAttempt", at).apply()
+    fun markAttempt(context: Context, atMs: Long) {
+        preferences(context).edit().putLong("lastAttempt", atMs).apply()
     }
 }

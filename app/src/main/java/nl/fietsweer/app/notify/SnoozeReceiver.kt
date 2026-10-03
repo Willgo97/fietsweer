@@ -8,10 +8,10 @@ import androidx.core.app.NotificationManagerCompat
 class SnoozeReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
-        val id = intent.getStringExtra(EXTRA_ALERT_ID).orEmpty()
+        val alertId = intent.getStringExtra(EXTRA_ALERT_ID).orEmpty()
         NotificationManagerCompat.from(context).cancelAll()
         AlertScheduler.scheduleOneShot(
-            context, id, System.currentTimeMillis() + 60 * 60 * 1000L
+            context, alertId, System.currentTimeMillis() + 60 * 60 * 1000L
         )
     }
 

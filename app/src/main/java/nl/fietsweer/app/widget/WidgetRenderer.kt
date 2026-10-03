@@ -3,7 +3,6 @@ package nl.fietsweer.app.widget
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.graphics.Color
 import android.os.Build
 import android.util.SizeF
 import android.widget.RemoteViews
@@ -14,49 +13,45 @@ import nl.fietsweer.app.data.RouteForecast
 import nl.fietsweer.app.data.Settings
 import nl.fietsweer.app.domain.Advice
 import nl.fietsweer.app.domain.AdviceText
+import nl.fietsweer.app.domain.Commute
 import nl.fietsweer.app.domain.Engine
-import nl.fietsweer.app.domain.Fmt
+import nl.fietsweer.app.domain.Formatter
 import nl.fietsweer.app.domain.Jacket
-import nl.fietsweer.app.domain.Layer
-import nl.fietsweer.app.domain.Need
-import nl.fietsweer.app.domain.Txt
-import nl.fietsweer.app.notify.Commute
+import nl.fietsweer.app.domain.Strings
+import nl.fietsweer.app.ui.theme.SystemColors
 
 object WidgetRenderer {
 
     fun snapshotFor(settings: Settings, forecast: RouteForecast?): WidgetSnapshot? {
-        if (!settings.ready || forecast == null || !forecast.hasModels) return null
-        val txt = Txt.of(settings.lang)
-        val fmt = Fmt(txt)
+        if (!settings.hasRoute || forecast == null || !forecast.hasModels) return null
+        val strings = Strings.of(settings.language)
+        val format = Formatter(strings)
 
         val engine = Engine(forecast, settings)
-        val rides = Commute.plannedRides(settings, Coverage.BOTH, alertDaysOnly = true)
-            .map { (leg, at) -> engine.assess(at, leg) }
+        val rides = Commute.plannedRides(settings, Coverage.BOTH, alertDaysOnly = true).map(engine::assess)
         val advice: Advice = Jacket.forRides(rides, settings)
-        val chips = AdviceText.chips(advice, txt)
 
-        val lines = rides.map { r ->
-            val rain = if (r.risk < 0.10) txt.notifDry else "${r.riskPercent}%"
-            val feel = if (r.hasConditions) " · ${fmt.temp(r.bikeFeelC)}" else ""
-            "${AdviceText.legName(r.leg, txt)}  ${AdviceText.moment(r, fmt)}  $rain$feel"
+        val legLines = rides.map { ride ->
+            val rain = if (ride.risk < 0.10) strings.notifDry else format.percent(ride.risk)
+            val feel = if (ride.hasConditions) " · ${format.temp(ride.bikeFeelC)}" else ""
+            "${AdviceText.legName(ride.leg, strings)}  ${AdviceText.moment(ride, format)}  $rain$feel"
         }
 
         return WidgetSnapshot(
-            headline = AdviceText.headline(advice, txt),
-            chips = if (chips.isEmpty()) txt.adviceNoneSub else chips.joinToString(" · ") { it.first },
-            leg1 = lines.getOrElse(0) { "" },
-            leg2 = lines.getOrElse(1) { "" },
-            stamp = fmt.time(forecast.fetchedAt),
-            accent = accentFor(advice),
-            savedAt = System.currentTimeMillis()
+            headline = AdviceText.headline(advice, strings),
+            chipLine = AdviceText.chipLine(advice, strings),
+            firstLegLine = legLines.getOrElse(0) { "" },
+            secondLegLine = legLines.getOrElse(1) { "" },
+            updatedTime = format.time(forecast.fetchedAt),
+            accent = SystemColors.adviceAccent(advice)
         )
     }
 
     fun build(context: Context, settings: Settings, snapshot: WidgetSnapshot?): RemoteViews {
-        val txt = Txt.of(settings.lang)
-        val full = layout(context, txt, snapshot, compact = false)
+        val strings = Strings.of(settings.language)
+        val full = layout(context, strings, snapshot, compact = false)
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return full
-        val compact = layout(context, txt, snapshot, compact = true)
+        val compact = layout(context, strings, snapshot, compact = true)
         return RemoteViews(
             mapOf(
                 SizeF(140f, 40f) to compact,
@@ -65,16 +60,16 @@ object WidgetRenderer {
         )
     }
 
-    fun single(
+    fun singleLayout(
         context: Context,
         settings: Settings,
         snapshot: WidgetSnapshot?,
         compact: Boolean
-    ): RemoteViews = layout(context, Txt.of(settings.lang), snapshot, compact)
+    ): RemoteViews = layout(context, Strings.of(settings.language), snapshot, compact)
 
     private fun layout(
         context: Context,
-        txt: Txt,
+        strings: Strings,
         snapshot: WidgetSnapshot?,
         compact: Boolean
     ): RemoteViews {
@@ -82,8 +77,8 @@ object WidgetRenderer {
             context.packageName,
             if (compact) R.layout.widget_advice_compact else R.layout.widget_advice
         )
-        val rootId = if (compact) R.id.widget_c_root else R.id.widget_root
-        val accentId = if (compact) R.id.widget_c_accent else R.id.widget_accent
+        val rootId = if (compact) R.id.widget_compact_root else R.id.widget_root
+        val accentId = if (compact) R.id.widget_compact_accent else R.id.widget_accent
 
         views.setOnClickPendingIntent(
             rootId,
@@ -96,47 +91,38 @@ object WidgetRenderer {
         )
 
         if (snapshot == null) {
-            val headline = txt.setupNeededTitle
-            val sub = txt.setupNeededBody
+            val headline = strings.setupNeededTitle
+            val body = strings.setupNeededBody
             if (compact) {
-                views.setTextViewText(R.id.widget_c_headline, headline)
-                views.setTextViewText(R.id.widget_c_legs, sub)
+                views.setTextViewText(R.id.widget_compact_headline, headline)
+                views.setTextViewText(R.id.widget_compact_legs, body)
             } else {
-                views.setTextViewText(R.id.widget_kicker, txt.appName.uppercase())
+                views.setTextViewText(R.id.widget_kicker, strings.appName.uppercase())
                 views.setTextViewText(R.id.widget_stamp, "")
                 views.setTextViewText(R.id.widget_headline, headline)
-                views.setTextViewText(R.id.widget_chips, sub)
+                views.setTextViewText(R.id.widget_chips, body)
                 views.setTextViewText(R.id.widget_leg1, "")
                 views.setTextViewText(R.id.widget_leg2, "")
             }
-            views.setInt(accentId, "setColorFilter", Color.parseColor("#7D8B95"))
+            views.setInt(accentId, "setColorFilter", SystemColors.widgetIdle)
             return views
         }
 
         if (compact) {
-            views.setTextViewText(R.id.widget_c_headline, snapshot.headline)
+            views.setTextViewText(R.id.widget_compact_headline, snapshot.headline)
             views.setTextViewText(
-                R.id.widget_c_legs,
-                listOf(snapshot.leg1, snapshot.leg2).filter { it.isNotBlank() }.joinToString(" · ")
+                R.id.widget_compact_legs,
+                listOf(snapshot.firstLegLine, snapshot.secondLegLine).filter { it.isNotBlank() }.joinToString(" · ")
             )
         } else {
-            views.setTextViewText(R.id.widget_kicker, txt.appName.uppercase())
-            views.setTextViewText(R.id.widget_stamp, snapshot.stamp)
+            views.setTextViewText(R.id.widget_kicker, strings.appName.uppercase())
+            views.setTextViewText(R.id.widget_stamp, snapshot.updatedTime)
             views.setTextViewText(R.id.widget_headline, snapshot.headline)
-            views.setTextViewText(R.id.widget_chips, snapshot.chips)
-            views.setTextViewText(R.id.widget_leg1, snapshot.leg1)
-            views.setTextViewText(R.id.widget_leg2, snapshot.leg2)
+            views.setTextViewText(R.id.widget_chips, snapshot.chipLine)
+            views.setTextViewText(R.id.widget_leg1, snapshot.firstLegLine)
+            views.setTextViewText(R.id.widget_leg2, snapshot.secondLegLine)
         }
         views.setInt(accentId, "setColorFilter", snapshot.accent)
         return views
-    }
-
-    private fun accentFor(a: Advice): Int = when {
-        a.rain == Need.YES && a.layer == Layer.WINTER -> Color.parseColor("#8A5BD6")
-        a.rain == Need.YES -> Color.parseColor("#2D7FF0")
-        a.layer == Layer.WINTER -> Color.parseColor("#C85A2B")
-        a.layer == Layer.VEST -> Color.parseColor("#E07B32")
-        a.rain == Need.MAYBE -> Color.parseColor("#DD9A26")
-        else -> Color.parseColor("#1F9D55")
     }
 }

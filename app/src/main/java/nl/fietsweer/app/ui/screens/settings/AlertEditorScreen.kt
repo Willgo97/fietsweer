@@ -1,4 +1,4 @@
-package nl.fietsweer.app.ui.screens
+package nl.fietsweer.app.ui.screens.settings
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -9,8 +9,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -26,27 +24,27 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import nl.fietsweer.app.data.Alert
-import nl.fietsweer.app.data.Coverage
 import nl.fietsweer.app.notify.AlertScheduler
+import nl.fietsweer.app.ui.components.ButtonLabel
+import nl.fietsweer.app.ui.components.CoverageChoice
 import nl.fietsweer.app.ui.components.DayPicker
 import nl.fietsweer.app.ui.components.SectionCard
-import nl.fietsweer.app.ui.components.SegmentedChoice
+import nl.fietsweer.app.ui.components.SwitchRow
 import nl.fietsweer.app.ui.components.TimeChip
 import nl.fietsweer.app.ui.components.TimePickerDialog
 import nl.fietsweer.app.ui.theme.AppTheme
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.getValue
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,27 +55,27 @@ fun AlertEditorScreen(
     onSave: (Alert) -> Unit,
     onDelete: (String) -> Unit
 ) {
-    val t = AppTheme.txt
-    val fmt = AppTheme.fmt
+    val strings = AppTheme.strings
+    val format = AppTheme.format
 
     var draft by remember { mutableStateOf(original) }
-    var showTime by remember { mutableStateOf(false) }
+    var editingTime by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (isNew) t.newAlert else t.editAlert) },
+                title = { Text(if (isNew) strings.newAlert else strings.editAlert) },
                 navigationIcon = {
                     IconButton(onClick = onClose) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, t.back)
+                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, strings.back)
                     }
                 },
                 actions = {
                     if (!isNew) {
                         IconButton(onClick = { confirmDelete = true }) {
                             Icon(
-                                Icons.Rounded.DeleteOutline, t.delete,
+                                Icons.Rounded.DeleteOutline, strings.delete,
                                 tint = MaterialTheme.colorScheme.error
                             )
                         }
@@ -95,68 +93,50 @@ fun AlertEditorScreen(
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
 
-            SectionCard(title = t.alertTime) {
+            SectionCard(title = strings.alertTime) {
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    TimeChip(draft.hour, draft.minute, onClick = { showTime = true })
+                    TimeChip(draft.hour, draft.minute, onClick = { editingTime = true })
                 }
             }
 
-            SectionCard(title = t.alertDays) {
+            SectionCard(title = strings.alertDays) {
                 DayPicker(draft.days, onChange = { draft = draft.copy(days = it) })
                 Spacer(Modifier.height(12.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    QuickDays(t.weekdays) { draft = draft.copy(days = setOf(1, 2, 3, 4, 5)) }
-                    QuickDays(t.weekend) { draft = draft.copy(days = setOf(6, 7)) }
-                    QuickDays(t.everyDay) { draft = draft.copy(days = (1..7).toSet()) }
+                    QuickDays(strings.weekdays) { draft = draft.copy(days = setOf(1, 2, 3, 4, 5)) }
+                    QuickDays(strings.weekend) { draft = draft.copy(days = setOf(6, 7)) }
+                    QuickDays(strings.everyDay) { draft = draft.copy(days = (1..7).toSet()) }
                 }
                 Spacer(Modifier.height(10.dp))
                 Text(
                     AlertScheduler.nextTrigger(draft.copy(enabled = true))
-                        ?.let { t.nextFire(fmt.dayTime(it)) } ?: t.neverRepeats,
+                        ?.let { strings.nextFire(format.dayTime(it)) } ?: strings.neverRepeats,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
-            SectionCard(title = t.alertCoverage) {
-                SegmentedChoice(
-                    options = listOf(
-                        Coverage.OUTBOUND to t.coverageOutbound,
-                        Coverage.RETURN to t.coverageReturn,
-                        Coverage.BOTH to t.coverageBoth
-                    ),
-                    selected = draft.coverage,
-                    onSelect = { draft = draft.copy(coverage = it) },
-                    modifier = Modifier.fillMaxWidth()
-                )
+            SectionCard(title = strings.alertCoverage) {
+                CoverageChoice(draft.coverage) { draft = draft.copy(coverage = it) }
             }
 
             SectionCard {
                 OutlinedTextField(
                     value = draft.label,
                     onValueChange = { draft = draft.copy(label = it.take(40)) },
-                    label = { Text(t.alertLabel) },
-                    placeholder = { Text(t.alertLabelHint) },
+                    label = { Text(strings.alertLabel) },
+                    placeholder = { Text(strings.alertLabelHint) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp)
                 )
                 Spacer(Modifier.height(14.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text(t.onlyWhenNeeded, style = MaterialTheme.typography.bodyLarge)
-                        Text(
-                            t.onlyWhenNeededBody,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Spacer(Modifier.width(12.dp))
-                    Switch(
-                        checked = draft.onlyWhenNeeded,
-                        onCheckedChange = { draft = draft.copy(onlyWhenNeeded = it) }
-                    )
-                }
+                SwitchRow(
+                    title = strings.onlyWhenNeeded,
+                    subtitle = strings.onlyWhenNeededBody,
+                    checked = draft.onlyWhenNeeded,
+                    onCheckedChange = { draft = draft.copy(onlyWhenNeeded = it) }
+                )
             }
 
             Button(
@@ -165,23 +145,21 @@ fun AlertEditorScreen(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp)
             ) {
-                Icon(Icons.Rounded.Check, null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Text(t.save)
+                ButtonLabel(strings.save, Icons.Rounded.Check)
             }
             Spacer(Modifier.height(20.dp))
         }
     }
 
-    if (showTime) {
+    if (editingTime) {
         TimePickerDialog(
             hour = draft.hour,
             minute = draft.minute,
-            title = t.alertTime,
-            onDismiss = { showTime = false },
-            onConfirm = { h, m ->
-                draft = draft.copy(hour = h, minute = m)
-                showTime = false
+            title = strings.alertTime,
+            onDismiss = { editingTime = false },
+            onConfirm = { hour, minute ->
+                draft = draft.copy(hour = hour, minute = minute)
+                editingTime = false
             }
         )
     }
@@ -189,14 +167,14 @@ fun AlertEditorScreen(
     if (confirmDelete) {
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
-            title = { Text(t.deleteAlertConfirm) },
+            title = { Text(strings.deleteAlertConfirm) },
             confirmButton = {
                 TextButton(onClick = { confirmDelete = false; onDelete(draft.id) }) {
-                    Text(t.delete, color = MaterialTheme.colorScheme.error)
+                    Text(strings.delete, color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { confirmDelete = false }) { Text(t.cancel) }
+                TextButton(onClick = { confirmDelete = false }) { Text(strings.cancel) }
             }
         )
     }

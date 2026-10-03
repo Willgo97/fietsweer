@@ -1,58 +1,70 @@
 package nl.fietsweer.app.domain
 
+import nl.fietsweer.app.data.Coverage
 import nl.fietsweer.app.data.Leg
 
 object AdviceText {
 
-    fun headline(a: Advice, t: Txt): String = when (a.rain) {
-        Need.YES -> when (a.layer) {
-            Layer.WINTER -> t.adviceRainWinter
-            Layer.VEST -> t.adviceRainVest
-            Layer.SHORT_SLEEVES -> t.adviceRain
+    fun headline(advice: Advice, strings: Strings): String = when (advice.rain) {
+        Need.YES -> when (advice.layer) {
+            Layer.WINTER -> strings.adviceRainWinter
+            Layer.VEST -> strings.adviceRainVest
+            Layer.SHORT_SLEEVES -> strings.adviceRain
         }
-        Need.MAYBE -> when (a.layer) {
-            Layer.WINTER -> t.adviceMaybeRainWinter
-            Layer.VEST -> t.adviceMaybeRainVest
-            Layer.SHORT_SLEEVES -> t.adviceMaybeRain
+        Need.MAYBE -> when (advice.layer) {
+            Layer.WINTER -> strings.adviceMaybeRainWinter
+            Layer.VEST -> strings.adviceMaybeRainVest
+            Layer.SHORT_SLEEVES -> strings.adviceMaybeRain
         }
-        Need.NO -> when (a.layer) {
-            Layer.WINTER -> t.adviceWinter
-            Layer.VEST -> t.adviceVest
-            Layer.SHORT_SLEEVES -> t.adviceNone
+        Need.NO -> when (advice.layer) {
+            Layer.WINTER -> strings.adviceWinter
+            Layer.VEST -> strings.adviceVest
+            Layer.SHORT_SLEEVES -> strings.adviceNone
         }
     }
 
-    fun chips(a: Advice, t: Txt): List<Pair<String, Boolean>> {
-        val out = mutableListOf<Pair<String, Boolean>>()
-        if (a.rain != Need.NO) out += t.chipRainJacket to (a.rain == Need.YES)
-        when (a.layer) {
-            Layer.WINTER -> out += t.chipWinter to true
-            Layer.VEST -> out += t.chipVest to true
+    fun chips(advice: Advice, strings: Strings): List<Pair<String, Boolean>> {
+        val chips = mutableListOf<Pair<String, Boolean>>()
+        if (advice.rain != Need.NO) chips += strings.chipRainJacket to (advice.rain == Need.YES)
+        when (advice.layer) {
+            Layer.WINTER -> chips += strings.chipWinter to true
+            Layer.VEST -> chips += strings.chipVest to true
             Layer.SHORT_SLEEVES -> Unit
         }
-        for (e in a.extras) {
-            val label = when (e) {
-                Extra.GLOVES -> t.chipGloves
-                Extra.HAT -> t.chipHat
-                Extra.WINDY -> t.chipWindy
-                Extra.FROST -> t.chipFrost
-                Extra.HOT -> t.chipHot
-                Extra.HEAVY_SHOWER -> t.chipHeavy
-                Extra.DARK -> t.chipDark
+        for (extra in advice.extras) {
+            val label = when (extra) {
+                Extra.GLOVES -> strings.chipGloves
+                Extra.HAT -> strings.chipHat
+                Extra.WINDY -> strings.chipWindy
+                Extra.FROST -> strings.chipFrost
+                Extra.HOT -> strings.chipHot
+                Extra.HEAVY_SHOWER -> strings.chipHeavy
+                Extra.DARK -> strings.chipDark
             }
-            out += label to false
+            chips += label to false
         }
-        return out
+        return chips
     }
 
-    fun legName(leg: Leg, t: Txt): String = if (leg == Leg.OUTBOUND) t.toWork else t.toHome
+    fun chipLine(advice: Advice, strings: Strings): String {
+        val chips = chips(advice, strings)
+        return if (chips.isEmpty()) strings.adviceNoneSub else chips.joinToString(" · ") { it.first }
+    }
 
-    fun moment(r: RideAssessment, f: Fmt): String =
-        if (f.isToday(r.departureMs)) f.time(r.departureMs) else f.dayTime(r.departureMs)
+    fun legName(leg: Leg, strings: Strings): String = if (leg == Leg.OUTBOUND) strings.toWork else strings.toHome
 
-    fun legLine(r: RideAssessment, t: Txt, f: Fmt): String {
-        val rain = if (r.risk < 0.10) t.notifDry else t.notifRainPct(r.riskPercent)
-        val feel = if (r.hasConditions) " · ${t.feelsLike} ${f.temp(r.bikeFeelC)}" else ""
-        return t.notifLegLine(legName(r.leg, t), moment(r, f), rain + feel)
+    fun coverageName(coverage: Coverage, strings: Strings): String = when (coverage) {
+        Coverage.OUTBOUND -> strings.coverageOutbound
+        Coverage.RETURN -> strings.coverageReturn
+        Coverage.BOTH -> strings.coverageBoth
+    }
+
+    fun moment(ride: RideAssessment, format: Formatter): String =
+        if (format.isToday(ride.departureMs)) format.time(ride.departureMs) else format.dayTime(ride.departureMs)
+
+    fun legLine(ride: RideAssessment, strings: Strings, format: Formatter): String {
+        val rain = if (ride.risk < 0.10) strings.notifDry else strings.notifRainPct(ride.riskPercent)
+        val feel = if (ride.hasConditions) " · ${strings.feelsLike} ${format.temp(ride.bikeFeelC)}" else ""
+        return strings.notifLegLine(legName(ride.leg, strings), moment(ride, format), rain + feel)
     }
 }

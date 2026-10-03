@@ -17,9 +17,8 @@ enum class SourceState { OK, EMPTY, FAILED, SKIPPED }
 data class SourceStatus(val label: String, val state: SourceState, val note: String = "")
 
 class ModelSeries(
-    val id: String,
     val label: String,
-    val perPoint: List<DoubleArray>
+    val precipitationPerPoint: List<DoubleArray>
 )
 
 data class RadarSample(val timeMs: Long, val mmPerHour: Double)
@@ -33,16 +32,16 @@ class RouteForecast(
     val modelTimes: LongArray,
     val models: List<ModelSeries>,
 
-    val ensTimes: LongArray,
-    val ensMembers: List<DoubleArray>,
+    val ensembleTimes: LongArray,
+    val ensembleMembers: List<DoubleArray>,
 
-    val fineTimes: LongArray,
-    val fine: Map<String, DoubleArray>,
+    val quarterHourTimes: LongArray,
+    val quarterHourly: Map<String, DoubleArray>,
 
-    val hourTimes: LongArray,
+    val hourlyTimes: LongArray,
     val hourly: Map<String, DoubleArray>,
 
-    val dayTimes: LongArray,
+    val dailyTimes: LongArray,
     val daily: Map<String, DoubleArray>,
 
     val current: Map<String, Double>,
@@ -61,7 +60,7 @@ object WeatherApi {
 
     private const val SAMPLE_POINTS = 4
 
-    val MODELS: List<Pair<String, String>> = listOf(
+    private val MODELS: List<Pair<String, String>> = listOf(
         "knmi_harmonie_arome_netherlands" to "KNMI Harmonie 2 km",
         "knmi_seamless" to "KNMI seamless",
         "dwd_icon_d2" to "DWD ICON-D2 2 km",
@@ -79,61 +78,61 @@ object WeatherApi {
         "cma_grapes_global" to "CMA GRAPES"
     )
 
-    private val zoneParam: String
+    private val timezoneParameter: String
         get() = URLEncoder.encode(ZoneId.systemDefault().id, "UTF-8")
 
     suspend fun fetch(home: Place, work: Place, useRadar: Boolean): RouteForecast = coroutineScope {
         val points = Geo.samplePoints(home.toLatLon(), work.toLatLon(), SAMPLE_POINTS)
-        val mid = points[points.size / 2]
-        val distance = Geo.haversineKm(home.toLatLon(), work.toLatLon()) * Geo.DETOUR_FACTOR
+        val midpoint = points[points.size / 2]
+        val distance = Geo.routeKm(home.toLatLon(), work.toLatLon())
 
-        val lats = points.joinToString(",") { fmt(it.lat) }
-        val lons = points.joinToString(",") { fmt(it.lon) }
-        val ids = MODELS.joinToString(",") { it.first }
+        val latitudes = points.joinToString(",") { coordinate(it.lat) }
+        val longitudes = points.joinToString(",") { coordinate(it.lon) }
+        val modelIds = MODELS.joinToString(",") { it.first }
 
-        val urlModels = "https://api.open-meteo.com/v1/forecast" +
-            "?latitude=$lats&longitude=$lons" +
+        val modelsUrl = "https://api.open-meteo.com/v1/forecast" +
+            "?latitude=$latitudes&longitude=$longitudes" +
             "&minutely_15=precipitation" +
-            "&models=$ids" +
-            "&forecast_days=4&timeformat=unixtime&timezone=$zoneParam"
+            "&models=$modelIds" +
+            "&forecast_days=4&timeformat=unixtime&timezone=$timezoneParameter"
 
-        val urlEnsemble = "https://ensemble-api.open-meteo.com/v1/ensemble" +
-            "?latitude=${fmt(mid.lat)}&longitude=${fmt(mid.lon)}" +
+        val ensembleUrl = "https://ensemble-api.open-meteo.com/v1/ensemble" +
+            "?latitude=${coordinate(midpoint.lat)}&longitude=${coordinate(midpoint.lon)}" +
             "&hourly=precipitation" +
             "&models=icon_d2,ecmwf_ifs025" +
-            "&forecast_days=4&timeformat=unixtime&timezone=$zoneParam"
+            "&forecast_days=4&timeformat=unixtime&timezone=$timezoneParameter"
 
-        val radarWanted = useRadar && inBenelux(mid)
-        val urlRadar = "https://gpsgadget.buienradar.nl/data/raintext" +
-            "?lat=${"%.2f".format(java.util.Locale.US, mid.lat)}" +
-            "&lon=${"%.2f".format(java.util.Locale.US, mid.lon)}"
+        val radarWanted = useRadar && inBenelux(midpoint)
+        val radarUrl = "https://gpsgadget.buienradar.nl/data/raintext" +
+            "?lat=${"%.2f".format(java.util.Locale.US, midpoint.lat)}" +
+            "&lon=${"%.2f".format(java.util.Locale.US, midpoint.lon)}"
 
-        val dModels = async { runCatching { Net.getText(urlModels) } }
-        val dEns = async { runCatching { Net.getText(urlEnsemble) } }
-        val dCond = async { runCatching { conditions(mid) } }
-        val dRadar = async {
-            if (radarWanted) runCatching { Net.getText(urlRadar, 12_000) } else null
+        val modelsRequest = async { runCatching { Net.getText(modelsUrl) } }
+        val ensembleRequest = async { runCatching { Net.getText(ensembleUrl) } }
+        val conditionsRequest = async { runCatching { conditions(midpoint) } }
+        val radarRequest = async {
+            if (radarWanted) runCatching { Net.getText(radarUrl, 12_000) } else null
         }
 
         val sources = mutableListOf<SourceStatus>()
 
         var modelTimes = LongArray(0)
         val models = mutableListOf<ModelSeries>()
-        dModels.await().onSuccess { body ->
+        modelsRequest.await().onSuccess { body ->
             runCatching {
-                val arr = JSONArray(body)
-                val blocks = (0 until arr.length()).map { arr.getJSONObject(it).getJSONObject("minutely_15") }
+                val perPoint = JSONArray(body)
+                val blocks = (0 until perPoint.length()).map { perPoint.getJSONObject(it).getJSONObject("minutely_15") }
                 modelTimes = blocks[0].getJSONArray("time").toMillis()
                 var missing = 0
                 for ((id, label) in MODELS) {
                     val key = "precipitation_$id"
-                    val perPoint = blocks.map { it.optJSONArray(key)?.toDoubles() }
-                    if (perPoint.any { it == null } || perPoint.any { arr2 -> arr2!!.none { !it.isNaN() } }) {
+                    val series = blocks.map { it.optJSONArray(key)?.toDoubles() }
+                    if (series.any { it == null } || series.any { values -> values!!.none { !it.isNaN() } }) {
                         missing++
                         continue
                     }
                     @Suppress("UNCHECKED_CAST")
-                    models += ModelSeries(id, label, perPoint as List<DoubleArray>)
+                    models += ModelSeries(label, series as List<DoubleArray>)
                 }
                 sources += SourceStatus(
                     "Open-Meteo · ${models.size} weather models",
@@ -147,18 +146,17 @@ object WeatherApi {
             sources += SourceStatus("Open-Meteo · weather models", SourceState.FAILED, it.shortMessage())
         }
 
-        var ensTimes = LongArray(0)
-        val ensMembers = mutableListOf<DoubleArray>()
-        dEns.await().onSuccess { body ->
+        var ensembleTimes = LongArray(0)
+        val ensembleMembers = mutableListOf<DoubleArray>()
+        ensembleRequest.await().onSuccess { body ->
             runCatching {
-                val o = JSONObject(body)
-                val h = o.getJSONObject("hourly")
-                ensTimes = h.getJSONArray("time").toMillis()
-                val keys = h.keys().asSequence().filter { it.contains("member") }.toList()
-                for (k in keys) h.optJSONArray(k)?.toDoubles()?.let { ensMembers += it }
+                val hourly = JSONObject(body).getJSONObject("hourly")
+                ensembleTimes = hourly.getJSONArray("time").toMillis()
+                val memberKeys = hourly.keys().asSequence().filter { it.contains("member") }.toList()
+                for (key in memberKeys) hourly.optJSONArray(key)?.toDoubles()?.let { ensembleMembers += it }
                 sources += SourceStatus(
-                    "Ensembles ICON-D2 + ECMWF · ${ensMembers.size} members",
-                    if (ensMembers.isEmpty()) SourceState.EMPTY else SourceState.OK
+                    "Ensembles ICON-D2 + ECMWF · ${ensembleMembers.size} members",
+                    if (ensembleMembers.isEmpty()) SourceState.EMPTY else SourceState.OK
                 )
             }.onFailure {
                 sources += SourceStatus("Ensembles ICON-D2 + ECMWF", SourceState.FAILED, it.shortMessage())
@@ -167,25 +165,16 @@ object WeatherApi {
             sources += SourceStatus("Ensembles ICON-D2 + ECMWF", SourceState.FAILED, it.shortMessage())
         }
 
-        var fineTimes = LongArray(0)
-        var fine: Map<String, DoubleArray> = emptyMap()
-        var hourTimes = LongArray(0)
-        var hourly: Map<String, DoubleArray> = emptyMap()
-        var dayTimes = LongArray(0)
-        var daily: Map<String, DoubleArray> = emptyMap()
-        var current: Map<String, Double> = emptyMap()
-        dCond.await().onSuccess { c ->
-            fineTimes = c.fineTimes; fine = c.fine
-            hourTimes = c.hourTimes; hourly = c.hourly
-            dayTimes = c.dayTimes; daily = c.daily
-            current = c.current
+        var conditions: Conditions? = null
+        conditionsRequest.await().onSuccess {
+            conditions = it
             sources += SourceStatus("Open-Meteo · temperature & wind", SourceState.OK)
         }.onFailure {
             sources += SourceStatus("Open-Meteo · temperature & wind", SourceState.FAILED, it.shortMessage())
         }
 
         val radar = mutableListOf<RadarSample>()
-        val radarResult = dRadar.await()
+        val radarResult = radarRequest.await()
         if (radarResult == null) {
             sources += SourceStatus(
                 "Buienradar rain radar",
@@ -193,8 +182,8 @@ object WeatherApi {
                 if (!useRadar) "switched off" else "outside coverage"
             )
         } else {
-            radarResult.onSuccess { txt ->
-                radar += parseRadar(txt)
+            radarResult.onSuccess { text ->
+                radar += parseRadar(text)
                 sources += SourceStatus(
                     "Buienradar rain radar",
                     if (radar.isEmpty()) SourceState.EMPTY else SourceState.OK
@@ -204,103 +193,110 @@ object WeatherApi {
             }
         }
 
+        val weather = conditions ?: Conditions.NONE
         RouteForecast(
             home = home, work = work, points = points, distanceKm = distance,
             modelTimes = modelTimes, models = models,
-            ensTimes = ensTimes, ensMembers = ensMembers,
-            fineTimes = fineTimes, fine = fine,
-            hourTimes = hourTimes, hourly = hourly,
-            dayTimes = dayTimes, daily = daily,
-            current = current, radar = radar,
+            ensembleTimes = ensembleTimes, ensembleMembers = ensembleMembers,
+            quarterHourTimes = weather.quarterHourTimes, quarterHourly = weather.quarterHourly,
+            hourlyTimes = weather.hourlyTimes, hourly = weather.hourly,
+            dailyTimes = weather.dailyTimes, daily = weather.daily,
+            current = weather.current, radar = radar,
             sources = sources, fetchedAt = System.currentTimeMillis()
         )
     }
 
     private class Conditions(
-        val fineTimes: LongArray, val fine: Map<String, DoubleArray>,
-        val hourTimes: LongArray, val hourly: Map<String, DoubleArray>,
-        val dayTimes: LongArray, val daily: Map<String, DoubleArray>,
+        val quarterHourTimes: LongArray, val quarterHourly: Map<String, DoubleArray>,
+        val hourlyTimes: LongArray, val hourly: Map<String, DoubleArray>,
+        val dailyTimes: LongArray, val daily: Map<String, DoubleArray>,
         val current: Map<String, Double>
-    )
+    ) {
+        companion object {
+            val NONE = Conditions(
+                LongArray(0), emptyMap(), LongArray(0), emptyMap(), LongArray(0), emptyMap(), emptyMap()
+            )
+        }
+    }
 
-    private const val HOURLY_VARS =
+    private const val HOURLY_VARIABLES =
         "temperature_2m,apparent_temperature,precipitation,precipitation_probability," +
             "weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m," +
             "cloud_cover,relative_humidity_2m,is_day"
 
-    private const val DAILY_VARS =
+    private const val DAILY_VARIABLES =
         "weather_code,temperature_2m_max,temperature_2m_min,apparent_temperature_min," +
             "apparent_temperature_max,precipitation_sum,precipitation_hours," +
             "precipitation_probability_max,wind_speed_10m_max,sunrise,sunset"
 
-    private const val CURRENT_VARS =
+    private const val CURRENT_VARIABLES =
         "temperature_2m,apparent_temperature,precipitation,weather_code," +
             "wind_speed_10m,wind_direction_10m,wind_gusts_10m,relative_humidity_2m,is_day"
 
-    private const val FINE_VARS =
+    private const val QUARTER_HOUR_VARIABLES =
         "temperature_2m,apparent_temperature,precipitation,wind_speed_10m," +
             "wind_direction_10m,wind_gusts_10m"
 
-    private suspend fun conditions(mid: LatLon): Conditions {
-        val base = "https://api.open-meteo.com/v1/forecast" +
-            "?latitude=${fmt(mid.lat)}&longitude=${fmt(mid.lon)}" +
-            "&hourly=$HOURLY_VARS&daily=$DAILY_VARS&current=$CURRENT_VARS" +
-            "&forecast_days=4&timeformat=unixtime&timezone=$zoneParam"
+    private suspend fun conditions(midpoint: LatLon): Conditions {
+        val baseUrl = "https://api.open-meteo.com/v1/forecast" +
+            "?latitude=${coordinate(midpoint.lat)}&longitude=${coordinate(midpoint.lon)}" +
+            "&hourly=$HOURLY_VARIABLES&daily=$DAILY_VARIABLES&current=$CURRENT_VARIABLES" +
+            "&forecast_days=4&timeformat=unixtime&timezone=$timezoneParameter"
 
         // minutely_15 makes some models fail the whole request; fall back to hourly.
-        val body = runCatching { Net.getText("$base&minutely_15=$FINE_VARS") }
-            .getOrElse { Net.getText(base) }
+        val body = runCatching { Net.getText("$baseUrl&minutely_15=$QUARTER_HOUR_VARIABLES") }
+            .getOrElse { Net.getText(baseUrl) }
 
-        val o = JSONObject(body)
-        val fineObj = o.optJSONObject("minutely_15")
-        val hourObj = o.getJSONObject("hourly")
-        val dayObj = o.getJSONObject("daily")
-        val curObj = o.optJSONObject("current")
+        val response = JSONObject(body)
+        val quarterHourBlock = response.optJSONObject("minutely_15")
+        val hourlyBlock = response.getJSONObject("hourly")
+        val dailyBlock = response.getJSONObject("daily")
+        val currentBlock = response.optJSONObject("current")
 
         return Conditions(
-            fineTimes = fineObj?.optJSONArray("time")?.toMillis() ?: LongArray(0),
-            fine = fineObj?.toSeriesMap() ?: emptyMap(),
-            hourTimes = hourObj.getJSONArray("time").toMillis(),
-            hourly = hourObj.toSeriesMap(),
-            dayTimes = dayObj.getJSONArray("time").toMillis(),
-            daily = dayObj.toSeriesMap(includeTimeLike = true),
+            quarterHourTimes = quarterHourBlock?.optJSONArray("time")?.toMillis() ?: LongArray(0),
+            quarterHourly = quarterHourBlock?.toSeriesMap() ?: emptyMap(),
+            hourlyTimes = hourlyBlock.getJSONArray("time").toMillis(),
+            hourly = hourlyBlock.toSeriesMap(),
+            dailyTimes = dailyBlock.getJSONArray("time").toMillis(),
+            daily = dailyBlock.toSeriesMap(includeSunTimes = true),
             current = buildMap {
-                curObj ?: return@buildMap
-                for (k in curObj.keys()) {
-                    val v = curObj.opt(k)
-                    if (v is Number) put(k, v.toDouble())
+                currentBlock ?: return@buildMap
+                for (key in currentBlock.keys()) {
+                    val value = currentBlock.opt(key)
+                    if (value is Number) put(key, value.toDouble())
                 }
             }
         )
     }
 
     // Lines like `000|16:50`: 0-255 log scale, Dutch local time, rolls past midnight.
-    fun parseRadar(text: String): List<RadarSample> {
+    private fun parseRadar(text: String): List<RadarSample> {
         val zone = ZoneId.of("Europe/Amsterdam")
         val now = ZonedDateTime.now(zone)
-        val line = Regex("""^(\d{1,3})\|(\d{2}):(\d{2})$""")
-        val out = mutableListOf<RadarSample>()
-        var prev: ZonedDateTime? = null
-        for (raw in text.trim().lines()) {
-            val m = line.matchEntire(raw.trim()) ?: continue
-            var t = now.withHour(m.groupValues[2].toInt())
-                .withMinute(m.groupValues[3].toInt())
+        val linePattern = Regex("""^(\d{1,3})\|(\d{2}):(\d{2})$""")
+        val samples = mutableListOf<RadarSample>()
+        var previous: ZonedDateTime? = null
+        for (line in text.trim().lines()) {
+            val match = linePattern.matchEntire(line.trim()) ?: continue
+            var time = now.withHour(match.groupValues[2].toInt())
+                .withMinute(match.groupValues[3].toInt())
                 .withSecond(0).withNano(0)
-            val p = prev
-            if (p != null && t.isBefore(p)) t = t.plusDays(1)
-            else if (p == null && Duration.between(t, now).toMinutes() > 180) t = t.plusDays(1)
-            prev = t
-            val v = m.groupValues[1].toInt()
-            val mmh = if (v <= 0) 0.0 else 10.0.pow((v - 109) / 32.0)
-            out += RadarSample(t.toInstant().toEpochMilli(), mmh)
+            val before = previous
+            if (before != null && time.isBefore(before)) time = time.plusDays(1)
+            else if (before == null && Duration.between(time, now).toMinutes() > 180) time = time.plusDays(1)
+            previous = time
+            val level = match.groupValues[1].toInt()
+            val mmPerHour = if (level <= 0) 0.0 else 10.0.pow((level - 109) / 32.0)
+            samples += RadarSample(time.toInstant().toEpochMilli(), mmPerHour)
         }
-        return out
+        return samples
     }
 
-    fun inBenelux(p: LatLon): Boolean =
-        p.lat in 48.5..55.5 && p.lon in 1.5..9.5
+    private fun inBenelux(point: LatLon): Boolean =
+        point.lat in 48.5..55.5 && point.lon in 1.5..9.5
 
-    private fun fmt(v: Double) = String.format(java.util.Locale.US, "%.4f", v)
+    private fun coordinate(degrees: Double) = String.format(java.util.Locale.US, "%.4f", degrees)
 
     private fun Throwable.shortMessage(): String =
         (message ?: this::class.java.simpleName).take(60)
@@ -311,14 +307,14 @@ object WeatherApi {
     private fun JSONArray.toDoubles(): DoubleArray =
         DoubleArray(length()) { if (isNull(it)) Double.NaN else optDouble(it, Double.NaN) }
 
-    private fun JSONObject.toSeriesMap(includeTimeLike: Boolean = false): Map<String, DoubleArray> {
-        val out = LinkedHashMap<String, DoubleArray>()
-        for (k in keys()) {
-            if (k == "time") continue
-            val a = optJSONArray(k) ?: continue
-            if (!includeTimeLike && (k == "sunrise" || k == "sunset")) continue
-            out[k] = a.toDoubles()
+    private fun JSONObject.toSeriesMap(includeSunTimes: Boolean = false): Map<String, DoubleArray> {
+        val series = LinkedHashMap<String, DoubleArray>()
+        for (key in keys()) {
+            if (key == "time") continue
+            val values = optJSONArray(key) ?: continue
+            if (!includeSunTimes && (key == "sunrise" || key == "sunset")) continue
+            series[key] = values.toDoubles()
         }
-        return out
+        return series
     }
 }

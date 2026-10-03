@@ -10,42 +10,42 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
-import nl.fietsweer.app.data.Prefs
-import nl.fietsweer.app.data.Repository
+import nl.fietsweer.app.data.ForecastRepository
 import nl.fietsweer.app.data.RouteForecast
 import nl.fietsweer.app.data.Settings
+import nl.fietsweer.app.data.SettingsStore
 
 object WidgetUpdater {
 
-    private fun ids(context: Context): IntArray =
+    private fun widgetIds(context: Context): IntArray =
         AppWidgetManager.getInstance(context)
             .getAppWidgetIds(ComponentName(context, JacketWidget::class.java))
 
     fun redraw(context: Context) {
-        val ctx = context.applicationContext
-        val widgetIds = ids(ctx)
-        if (widgetIds.isEmpty()) return
-        val views = WidgetRenderer.build(ctx, Prefs.get(ctx).current, WidgetStore.load(ctx))
-        AppWidgetManager.getInstance(ctx).updateAppWidget(widgetIds, views)
+        val appContext = context.applicationContext
+        val ids = widgetIds(appContext)
+        if (ids.isEmpty()) return
+        val views = WidgetRenderer.build(appContext, SettingsStore.get(appContext).current, WidgetStore.load(appContext))
+        AppWidgetManager.getInstance(appContext).updateAppWidget(ids, views)
     }
 
     fun publish(context: Context, settings: Settings, forecast: RouteForecast?) {
-        val ctx = context.applicationContext
-        if (ids(ctx).isEmpty()) return
-        WidgetRenderer.snapshotFor(settings, forecast)?.let { WidgetStore.save(ctx, it) }
-        redraw(ctx)
+        val appContext = context.applicationContext
+        if (widgetIds(appContext).isEmpty()) return
+        WidgetRenderer.snapshotFor(settings, forecast)?.let { WidgetStore.save(appContext, it) }
+        redraw(appContext)
     }
 
     private const val MIN_REFRESH_GAP_MS = 10 * 60 * 1000L
 
     // Rate limited: enqueuing work fires PACKAGE_CHANGED, which calls JacketWidget.onUpdate again, endlessly.
     fun requestRefresh(context: Context, force: Boolean = false) {
-        val ctx = context.applicationContext
-        if (ids(ctx).isEmpty()) return
+        val appContext = context.applicationContext
+        if (widgetIds(appContext).isEmpty()) return
         val now = System.currentTimeMillis()
-        if (!force && now - WidgetStore.lastAttempt(ctx) < MIN_REFRESH_GAP_MS) return
-        WidgetStore.markAttempt(ctx, now)
-        WorkManager.getInstance(ctx).enqueueUniqueWork(
+        if (!force && now - WidgetStore.lastAttempt(appContext) < MIN_REFRESH_GAP_MS) return
+        WidgetStore.markAttempt(appContext, now)
+        WorkManager.getInstance(appContext).enqueueUniqueWork(
             "widget-refresh",
             ExistingWorkPolicy.KEEP,
             OneTimeWorkRequestBuilder<WidgetWorker>()
@@ -61,10 +61,10 @@ class WidgetWorker(context: Context, params: WorkerParameters) :
     CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
-        val prefs = Prefs.get(applicationContext)
-        prefs.reload()
-        val settings = prefs.current
-        val forecast = if (settings.ready) Repository.fetchDirect(settings) else null
+        val store = SettingsStore.get(applicationContext)
+        store.reload()
+        val settings = store.current
+        val forecast = if (settings.hasRoute) ForecastRepository.fetchDirect(settings) else null
         WidgetUpdater.publish(applicationContext, settings, forecast)
         return Result.success()
     }

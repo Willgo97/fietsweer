@@ -1,4 +1,4 @@
-package nl.fietsweer.app.notify
+package nl.fietsweer.app.domain
 
 import nl.fietsweer.app.data.Alert
 import nl.fietsweer.app.data.Coverage
@@ -17,11 +17,11 @@ class CommuteTest {
 
     private val zone: ZoneId = ZoneId.of("Europe/Amsterdam")
 
-    private val s = Settings(
+    private val settings = Settings(
         outboundHour = 8, outboundMinute = 0,
         returnHour = 17, returnMinute = 30,
-        outboundEarlyMin = 0, outboundLateMin = 60,
-        returnEarlyMin = 60, returnLateMin = 60
+        outboundEarlyMinutes = 0, outboundLateMinutes = 60,
+        returnEarlyMinutes = 60, returnLateMinutes = 60
     )
 
     @Before
@@ -29,15 +29,15 @@ class CommuteTest {
         TimeZone.setDefault(TimeZone.getTimeZone(zone))
     }
 
-    private fun at(y: Int, mo: Int, d: Int, h: Int, mi: Int): Long =
-        LocalDateTime.of(y, mo, d, h, mi).atZone(zone).toInstant().toEpochMilli()
+    private fun at(year: Int, month: Int, day: Int, hour: Int, minute: Int): Long =
+        LocalDateTime.of(year, month, day, hour, minute).atZone(zone).toInstant().toEpochMilli()
 
     private fun local(ms: Long): LocalDateTime =
         Instant.ofEpochMilli(ms).atZone(zone).toLocalDateTime()
 
     @Test
     fun `before the morning ride both legs are today, outbound first`() {
-        val rides = Commute.plannedRides(s, Coverage.BOTH, at(2026, 3, 10, 7, 0))
+        val rides = Commute.plannedRides(settings, Coverage.BOTH, at(2026, 3, 10, 7, 0))
         assertEquals(listOf(Leg.OUTBOUND, Leg.RETURN), rides.map { it.leg })
         assertEquals(LocalDateTime.of(2026, 3, 10, 8, 0), local(rides[0].departureMs))
         assertEquals(LocalDateTime.of(2026, 3, 10, 17, 30), local(rides[1].departureMs))
@@ -45,13 +45,13 @@ class CommuteTest {
 
     @Test
     fun `inside the slack the morning ride is still today`() {
-        val rides = Commute.plannedRides(s, Coverage.BOTH, at(2026, 3, 10, 8, 59))
+        val rides = Commute.plannedRides(settings, Coverage.BOTH, at(2026, 3, 10, 8, 59))
         assertEquals(LocalDateTime.of(2026, 3, 10, 8, 0), local(rides[0].departureMs))
     }
 
     @Test
     fun `past the slack the morning ride becomes tomorrow and sorts last`() {
-        val rides = Commute.plannedRides(s, Coverage.BOTH, at(2026, 3, 10, 9, 1))
+        val rides = Commute.plannedRides(settings, Coverage.BOTH, at(2026, 3, 10, 9, 1))
         assertEquals(listOf(Leg.RETURN, Leg.OUTBOUND), rides.map { it.leg })
         assertEquals(LocalDateTime.of(2026, 3, 10, 17, 30), local(rides[0].departureMs))
         assertEquals(LocalDateTime.of(2026, 3, 11, 8, 0), local(rides[1].departureMs))
@@ -59,7 +59,7 @@ class CommuteTest {
 
     @Test
     fun `after the evening slack both legs are tomorrow`() {
-        val rides = Commute.plannedRides(s, Coverage.BOTH, at(2026, 3, 10, 18, 31))
+        val rides = Commute.plannedRides(settings, Coverage.BOTH, at(2026, 3, 10, 18, 31))
         assertEquals(listOf(Leg.OUTBOUND, Leg.RETURN), rides.map { it.leg })
         assertEquals(LocalDateTime.of(2026, 3, 11, 8, 0), local(rides[0].departureMs))
         assertEquals(LocalDateTime.of(2026, 3, 11, 17, 30), local(rides[1].departureMs))
@@ -67,32 +67,32 @@ class CommuteTest {
 
     @Test
     fun `the window is the planned time minus early plus late`() {
-        val rides = Commute.plannedRides(s, Coverage.BOTH, at(2026, 3, 10, 7, 0))
-        val out = rides.first { it.leg == Leg.OUTBOUND }
-        val back = rides.first { it.leg == Leg.RETURN }
+        val rides = Commute.plannedRides(settings, Coverage.BOTH, at(2026, 3, 10, 7, 0))
+        val outbound = rides.first { it.leg == Leg.OUTBOUND }
+        val homeward = rides.first { it.leg == Leg.RETURN }
 
-        assertEquals(LocalDateTime.of(2026, 3, 10, 8, 0), local(out.earliestMs))
-        assertEquals(LocalDateTime.of(2026, 3, 10, 9, 0), local(out.latestMs))
-        assertEquals(LocalDateTime.of(2026, 3, 10, 16, 30), local(back.earliestMs))
-        assertEquals(LocalDateTime.of(2026, 3, 10, 18, 30), local(back.latestMs))
+        assertEquals(LocalDateTime.of(2026, 3, 10, 8, 0), local(outbound.earliestMs))
+        assertEquals(LocalDateTime.of(2026, 3, 10, 9, 0), local(outbound.latestMs))
+        assertEquals(LocalDateTime.of(2026, 3, 10, 16, 30), local(homeward.earliestMs))
+        assertEquals(LocalDateTime.of(2026, 3, 10, 18, 30), local(homeward.latestMs))
     }
 
     @Test
     fun `zero slack rolls over the minute the ride leaves`() {
-        val strict = s.copy(outboundLateMin = 0)
+        val strict = settings.copy(outboundLateMinutes = 0)
         assertEquals(
             LocalDateTime.of(2026, 3, 10, 8, 0),
-            local(Commute.next(strict, Leg.OUTBOUND, at(2026, 3, 10, 8, 0)).departureMs)
+            local(Commute.nextRide(strict, Leg.OUTBOUND, at(2026, 3, 10, 8, 0)).departureMs)
         )
         assertEquals(
             LocalDateTime.of(2026, 3, 11, 8, 0),
-            local(Commute.next(strict, Leg.OUTBOUND, at(2026, 3, 10, 8, 1)).departureMs)
+            local(Commute.nextRide(strict, Leg.OUTBOUND, at(2026, 3, 10, 8, 1)).departureMs)
         )
     }
 
     @Test
     fun `a longer slack keeps the ride on screen for longer`() {
-        val relaxed = s.copy(outboundLateMin = 180)
+        val relaxed = settings.copy(outboundLateMinutes = 180)
         val rides = Commute.plannedRides(relaxed, Coverage.BOTH, at(2026, 3, 10, 10, 30))
         assertEquals(LocalDateTime.of(2026, 3, 10, 8, 0), local(rides[0].departureMs))
         assertTrue(rides[0].leg == Leg.OUTBOUND)
@@ -101,25 +101,18 @@ class CommuteTest {
     @Test
     fun `rolling into a daylight-saving switch keeps the clock time`() {
         // 25-26 Oct 2025 the clocks go back: the day is 25 hours long.
-        val next = Commute.next(s, Leg.OUTBOUND, at(2025, 10, 25, 9, 30))
+        val next = Commute.nextRide(settings, Leg.OUTBOUND, at(2025, 10, 25, 9, 30))
         assertEquals(LocalDateTime.of(2025, 10, 26, 8, 0), local(next.departureMs))
     }
 
     @Test
     fun `a single-leg coverage only reports that leg`() {
-        val rides = Commute.plannedRides(s, Coverage.RETURN, at(2026, 3, 10, 9, 1))
+        val rides = Commute.plannedRides(settings, Coverage.RETURN, at(2026, 3, 10, 9, 1))
         assertEquals(listOf(Leg.RETURN), rides.map { it.leg })
         assertEquals(LocalDateTime.of(2026, 3, 10, 17, 30), local(rides[0].departureMs))
     }
 
-    @Test
-    fun `a stale ride is one whose slack has run out`() {
-        val planned = Commute.next(s, Leg.OUTBOUND, at(2026, 3, 10, 8, 30))
-        assertTrue(!planned.isStale(at(2026, 3, 10, 9, 0)))
-        assertTrue(planned.isStale(at(2026, 3, 10, 9, 1)))
-    }
-
-    private val weekdays = s.copy(alerts = listOf(Alert(id = "a", days = setOf(1, 2, 3, 4, 5))))
+    private val weekdays = settings.copy(alerts = listOf(Alert(id = "a", days = setOf(1, 2, 3, 4, 5))))
 
     @Test
     fun `after the last ride on Friday the next riding day is Monday`() {
@@ -137,8 +130,8 @@ class CommuteTest {
 
     @Test
     fun `disabled alerts do not make a riding day, and none at all means every day`() {
-        val off = s.copy(alerts = listOf(Alert(id = "a", days = setOf(1), enabled = false)))
-        val rides = Commute.plannedRides(off, Coverage.BOTH, at(2026, 3, 13, 18, 31), alertDaysOnly = true)
+        val disabled = settings.copy(alerts = listOf(Alert(id = "a", days = setOf(1), enabled = false)))
+        val rides = Commute.plannedRides(disabled, Coverage.BOTH, at(2026, 3, 13, 18, 31), alertDaysOnly = true)
         assertEquals(LocalDateTime.of(2026, 3, 14, 8, 0), local(rides[0].departureMs))
     }
 

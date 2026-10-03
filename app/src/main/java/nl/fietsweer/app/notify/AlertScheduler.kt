@@ -7,7 +7,7 @@ import android.content.Intent
 import android.os.Build
 import android.util.Log
 import nl.fietsweer.app.data.Alert
-import nl.fietsweer.app.data.Prefs
+import nl.fietsweer.app.data.SettingsStore
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
@@ -15,84 +15,85 @@ import java.time.ZonedDateTime
 object AlertScheduler {
 
     private const val TAG = "AlertScheduler"
-    private const val BOOK = "alert_book"
-    private const val KEY_IDS = "scheduled_ids"
+    private const val SCHEDULED_ALARMS_FILE = "alert_book"
+    private const val KEY_SCHEDULED_IDS = "scheduled_ids"
 
-    fun requestCode(id: String): Int = (id.hashCode() and 0x0FFFFFFF) or 1
+    private fun requestCode(alertId: String): Int = (alertId.hashCode() and 0x0FFFFFFF) or 1
 
     fun canScheduleExact(context: Context): Boolean {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return true
-        val am = context.getSystemService(AlarmManager::class.java) ?: return false
-        return am.canScheduleExactAlarms()
+        val alarmManager = context.getSystemService(AlarmManager::class.java) ?: return false
+        return alarmManager.canScheduleExactAlarms()
     }
 
-    fun nextTrigger(alert: Alert, fromMs: Long = System.currentTimeMillis()): Long? {
+    fun nextTrigger(alert: Alert): Long? {
         if (!alert.enabled || alert.days.isEmpty()) return null
+        val fromMs = System.currentTimeMillis()
         val zone = ZoneId.systemDefault()
         val now = ZonedDateTime.ofInstant(Instant.ofEpochMilli(fromMs), zone)
-        for (offset in 0..8L) {
-            val date = now.toLocalDate().plusDays(offset)
+        for (daysAhead in 0..8L) {
+            val date = now.toLocalDate().plusDays(daysAhead)
             if (date.dayOfWeek.value !in alert.days) continue
-            val at = date.atTime(alert.hour.coerceIn(0, 23), alert.minute.coerceIn(0, 59))
+            val triggerAt = date.atTime(alert.hour.coerceIn(0, 23), alert.minute.coerceIn(0, 59))
                 .atZone(zone)
-            val ms = at.toInstant().toEpochMilli()
-            if (ms > fromMs + 1000) return ms
+            val triggerMs = triggerAt.toInstant().toEpochMilli()
+            if (triggerMs > fromMs + 1000) return triggerMs
         }
         return null
     }
 
     fun rescheduleAll(context: Context) {
-        val ctx = context.applicationContext
-        val am = ctx.getSystemService(AlarmManager::class.java) ?: return
-        val book = ctx.getSharedPreferences(BOOK, Context.MODE_PRIVATE)
+        val appContext = context.applicationContext
+        val alarmManager = appContext.getSystemService(AlarmManager::class.java) ?: return
+        val scheduledAlarms = appContext.getSharedPreferences(SCHEDULED_ALARMS_FILE, Context.MODE_PRIVATE)
 
-        for (id in book.getStringSet(KEY_IDS, emptySet()).orEmpty()) {
-            am.cancel(pendingIntent(ctx, id, PendingIntent.FLAG_NO_CREATE) ?: continue)
+        for (alertId in scheduledAlarms.getStringSet(KEY_SCHEDULED_IDS, emptySet()).orEmpty()) {
+            alarmManager.cancel(pendingIntent(appContext, alertId, PendingIntent.FLAG_NO_CREATE) ?: continue)
         }
 
-        val alerts = Prefs.get(ctx).current.alerts
-        val live = mutableSetOf<String>()
+        val alerts = SettingsStore.get(appContext).current.alerts
+        val scheduledIds = mutableSetOf<String>()
         for (alert in alerts) {
-            val at = nextTrigger(alert) ?: continue
-            schedule(ctx, am, alert.id, at)
-            live += alert.id
+            val triggerMs = nextTrigger(alert) ?: continue
+            schedule(appContext, alarmManager, alert.id, triggerMs)
+            scheduledIds += alert.id
         }
-        book.edit().putStringSet(KEY_IDS, live).apply()
-        Log.i(TAG, "scheduled ${live.size} alert(s)")
+        scheduledAlarms.edit().putStringSet(KEY_SCHEDULED_IDS, scheduledIds).apply()
+        Log.i(TAG, "scheduled ${scheduledIds.size} alert(s)")
     }
 
     fun scheduleNext(context: Context, alert: Alert) {
-        val ctx = context.applicationContext
-        val am = ctx.getSystemService(AlarmManager::class.java) ?: return
-        val at = nextTrigger(alert) ?: return
-        schedule(ctx, am, alert.id, at)
+        val appContext = context.applicationContext
+        val alarmManager = appContext.getSystemService(AlarmManager::class.java) ?: return
+        val triggerMs = nextTrigger(alert) ?: return
+        schedule(appContext, alarmManager, alert.id, triggerMs)
     }
 
     fun scheduleOneShot(context: Context, alertId: String, atMs: Long) {
-        val ctx = context.applicationContext
-        val am = ctx.getSystemService(AlarmManager::class.java) ?: return
-        schedule(ctx, am, alertId, atMs)
+        val appContext = context.applicationContext
+        val alarmManager = appContext.getSystemService(AlarmManager::class.java) ?: return
+        schedule(appContext, alarmManager, alertId, atMs)
     }
 
-    private fun schedule(context: Context, am: AlarmManager, id: String, atMs: Long) {
-        val pi = pendingIntent(context, id, PendingIntent.FLAG_UPDATE_CURRENT) ?: return
+    private fun schedule(context: Context, alarmManager: AlarmManager, alertId: String, atMs: Long) {
+        val intent = pendingIntent(context, alertId, PendingIntent.FLAG_UPDATE_CURRENT) ?: return
         try {
             if (canScheduleExact(context)) {
-                am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, atMs, pi)
+                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, atMs, intent)
             } else {
-                am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, atMs, pi)
+                alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, atMs, intent)
             }
-        } catch (se: SecurityException) {
-            am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, atMs, pi)
+        } catch (e: SecurityException) {
+            alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, atMs, intent)
         }
     }
 
-    private fun pendingIntent(context: Context, id: String, extraFlags: Int): PendingIntent? {
+    private fun pendingIntent(context: Context, alertId: String, extraFlags: Int): PendingIntent? {
         val intent = Intent(context, AlertReceiver::class.java)
             .setAction("nl.fietsweer.app.ALERT")
-            .putExtra(AlertReceiver.EXTRA_ALERT_ID, id)
+            .putExtra(AlertReceiver.EXTRA_ALERT_ID, alertId)
         return PendingIntent.getBroadcast(
-            context, requestCode(id), intent,
+            context, requestCode(alertId), intent,
             PendingIntent.FLAG_IMMUTABLE or extraFlags
         )
     }

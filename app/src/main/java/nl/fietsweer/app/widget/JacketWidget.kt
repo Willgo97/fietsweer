@@ -9,7 +9,7 @@ class JacketWidget : AppWidgetProvider() {
 
     override fun onUpdate(
         context: Context,
-        manager: AppWidgetManager,
+        appWidgetManager: AppWidgetManager,
         appWidgetIds: IntArray
     ) {
         WidgetUpdater.redraw(context)
@@ -18,7 +18,7 @@ class JacketWidget : AppWidgetProvider() {
 
     override fun onAppWidgetOptionsChanged(
         context: Context,
-        manager: AppWidgetManager,
+        appWidgetManager: AppWidgetManager,
         appWidgetId: Int,
         newOptions: Bundle
     ) {

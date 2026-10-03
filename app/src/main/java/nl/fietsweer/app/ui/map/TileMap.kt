@@ -1,19 +1,17 @@
 package nl.fietsweer.app.ui.map
 
-import android.content.Context
-import android.graphics.BitmapFactory
-import android.util.LruCache
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -21,10 +19,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.FilterQuality
-import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
@@ -32,15 +28,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
-import nl.fietsweer.app.data.Net
 import nl.fietsweer.app.domain.Geo
 import nl.fietsweer.app.domain.LatLon
-import java.io.File
-import java.util.Collections
+import nl.fietsweer.app.ui.theme.MapPalette
 import kotlin.math.PI
 import kotlin.math.atan
 import kotlin.math.cos
@@ -49,28 +39,6 @@ import kotlin.math.ln
 import kotlin.math.pow
 import kotlin.math.sinh
 import kotlin.math.tan
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.getValue
-
-enum class TileSource(
-    val id: String,
-    val template: String,
-    val maxZoom: Int,
-    val attribution: String
-) {
-    OSM(
-        "osm", "https://tile.openstreetmap.org/{z}/{x}/{y}.png", 19,
-        "\u00a9 OpenStreetMap contributors"
-    ),
-
-    OSM_HOT(
-        "hot", "https://tile-a.openstreetmap.fr/hot/{z}/{x}/{y}.png", 19,
-        "\u00a9 OpenStreetMap contributors \u00b7 HOT"
-    );
-
-    fun url(z: Int, x: Int, y: Int): String =
-        template.replace("{z}", z.toString()).replace("{x}", x.toString()).replace("{y}", y.toString())
-}
 
 private val DARK_TILE_FILTER: ColorFilter = ColorFilter.colorMatrix(
     ColorMatrix(
@@ -82,61 +50,6 @@ private val DARK_TILE_FILTER: ColorFilter = ColorFilter.colorMatrix(
         )
     )
 )
-
-object TileLoader {
-
-    private const val MAX_MEMORY_TILES = 220
-    private val memory = object : LruCache<String, ImageBitmap>(MAX_MEMORY_TILES) {}
-    private val inFlight = Collections.synchronizedSet(HashSet<String>())
-    private val failed = Collections.synchronizedSet(HashSet<String>())
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-
-    private fun key(source: TileSource, z: Int, x: Int, y: Int) = "${source.id}/$z/$x/$y"
-
-    fun cached(source: TileSource, z: Int, x: Int, y: Int): ImageBitmap? =
-        memory.get(key(source, z, x, y))
-
-    fun request(
-        context: Context,
-        source: TileSource,
-        z: Int,
-        x: Int,
-        y: Int,
-        onLoaded: () -> Unit
-    ) {
-        val k = key(source, z, x, y)
-        if (memory.get(k) != null || k in failed || !inFlight.add(k)) return
-        val appContext = context.applicationContext
-        scope.launch {
-            try {
-                val file = File(appContext.cacheDir, "tiles/$k.png")
-                val bytes = if (file.exists() && file.length() > 0) {
-                    file.readBytes()
-                } else {
-                    val data = Net.blockingBytes(source.url(z, x, y), 15_000)
-                    runCatching {
-                        file.parentFile?.mkdirs()
-                        file.writeBytes(data)
-                    }
-                    data
-                }
-                val bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-                if (bmp != null) {
-                    memory.put(k, bmp.asImageBitmap())
-                    onLoaded()
-                } else {
-                    failed.add(k)
-                }
-            } catch (t: Throwable) {
-                failed.add(k)
-            } finally {
-                inFlight.remove(k)
-            }
-        }
-    }
-
-    fun clearFailures() = failed.clear()
-}
 
 class MapCamera(lat: Double, lon: Double, zoom: Float) {
     var lat by mutableStateOf(lat)
@@ -161,12 +74,7 @@ class MapCamera(lat: Double, lon: Double, zoom: Float) {
 fun rememberMapCamera(lat: Double, lon: Double, zoom: Float = 13f): MapCamera =
     remember { MapCamera(lat, lon, zoom) }
 
-data class MapMarker(
-    val point: LatLon,
-    val color: Color,
-    val ring: Color = Color.White,
-    val small: Boolean = false
-)
+data class MapMarker(val point: LatLon, val color: Color)
 
 data class MapLine(val points: List<LatLon>, val color: Color)
 
@@ -179,14 +87,14 @@ fun TileMap(
     markers: List<MapMarker> = emptyList(),
     lines: List<MapLine> = emptyList(),
     interactive: Boolean = true,
-    onMoved: (() -> Unit)? = null,
-    onTap: ((LatLon) -> Unit)? = null
+    onMoved: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current.density
-    var version by remember { mutableIntStateOf(0) }
-    val bump = remember { { version++; Unit } }
+    var loadedTiles by remember { mutableIntStateOf(0) }
+    val onTileLoaded = remember { { loadedTiles++; Unit } }
 
+    val palette = if (darken) MapPalette.Dark else MapPalette.Light
     val tileScale = density.coerceIn(1f, 2f)
     val baseTile = 256f * tileScale
 
@@ -203,77 +111,66 @@ fun TileMap(
                     if (!interactive) Modifier else Modifier.pointerInput(source) {
                         detectTransformGestures { centroid, pan, gestureZoom, _ ->
                             val world = baseTile * 2f.pow(camera.zoom)
-                            var nx = lonToNx(camera.lon) - pan.x / world
-                            var ny = latToNy(camera.lat) - pan.y / world
+                            var worldX = lonToWorldX(camera.lon) - pan.x / world
+                            var worldY = latToWorldY(camera.lat) - pan.y / world
 
                             if (gestureZoom != 1f) {
                                 val newZoom = (camera.zoom + ln(gestureZoom) / ln(2f))
                                     .coerceIn(MapCamera.MIN_ZOOM, MapCamera.MAX_ZOOM)
-                                val worldNew = baseTile * 2f.pow(newZoom)
-                                val cx = size.width / 2f
-                                val cy = size.height / 2f
-                                val pointNx = nx + (centroid.x - cx) / world
-                                val pointNy = ny + (centroid.y - cy) / world
-                                nx = pointNx - (centroid.x - cx) / worldNew
-                                ny = pointNy - (centroid.y - cy) / worldNew
+                                val newWorld = baseTile * 2f.pow(newZoom)
+                                val centerX = size.width / 2f
+                                val centerY = size.height / 2f
+                                val pinchWorldX = worldX + (centroid.x - centerX) / world
+                                val pinchWorldY = worldY + (centroid.y - centerY) / world
+                                worldX = pinchWorldX - (centroid.x - centerX) / newWorld
+                                worldY = pinchWorldY - (centroid.y - centerY) / newWorld
                                 camera.zoom = newZoom
                             }
-                            camera.lon = nxToLon(nx.coerceIn(0.0001, 0.9999))
-                            camera.lat = nyToLat(ny.coerceIn(0.0001, 0.9999))
+                            camera.lon = worldXToLon(worldX.coerceIn(0.0001, 0.9999))
+                            camera.lat = worldYToLat(worldY.coerceIn(0.0001, 0.9999))
                             onMoved?.invoke()
                         }
                     }
                 )
-                .then(
-                    if (onTap == null) Modifier else Modifier.pointerInput(source) {
-                        detectTapGestures { pos ->
-                            val world = baseTile * 2f.pow(camera.zoom)
-                            val nx = lonToNx(camera.lon) + (pos.x - size.width / 2f) / world
-                            val ny = latToNy(camera.lat) + (pos.y - size.height / 2f) / world
-                            onTap(LatLon(nyToLat(ny.coerceIn(0.0001, 0.9999)), nxToLon(nx)))
-                        }
-                    }
-                )
         ) {
-            @Suppress("UNUSED_EXPRESSION") version // redraw when a tile arrives
+            @Suppress("UNUSED_EXPRESSION") loadedTiles // redraw when a tile arrives
 
-            val z = floor(camera.zoom).toInt().coerceIn(0, source.maxZoom)
-            val frac = 2f.pow(camera.zoom - z)
-            val tilePx = baseTile * frac
-            val n = 1 shl z
+            val tileZoom = floor(camera.zoom).toInt().coerceIn(0, source.maxZoom)
+            val tilePx = baseTile * 2f.pow(camera.zoom - tileZoom)
+            val tilesPerSide = 1 shl tileZoom
 
-            val centerTx = lonToNx(camera.lon) * n
-            val centerTy = latToNy(camera.lat) * n
-            val cx = size.width / 2f
-            val cy = size.height / 2f
+            val centerTileX = lonToWorldX(camera.lon) * tilesPerSide
+            val centerTileY = latToWorldY(camera.lat) * tilesPerSide
+            val centerX = size.width / 2f
+            val centerY = size.height / 2f
 
-            val firstX = floor(centerTx - cx / tilePx).toInt()
-            val lastX = floor(centerTx + cx / tilePx).toInt()
-            val firstY = floor(centerTy - cy / tilePx).toInt()
-            val lastY = floor(centerTy + cy / tilePx).toInt()
+            val firstX = floor(centerTileX - centerX / tilePx).toInt()
+            val lastX = floor(centerTileX + centerX / tilePx).toInt()
+            val firstY = floor(centerTileY - centerY / tilePx).toInt()
+            val lastY = floor(centerTileY + centerY / tilePx).toInt()
 
-            drawRect(if (darken) Color(0xFF15191C) else Color(0xFFE8EDF1))
+            drawRect(palette.background)
 
-            for (ty in firstY..lastY) {
-                if (ty < 0 || ty >= n) continue
-                for (tx in firstX..lastX) {
-                    val wrapped = ((tx % n) + n) % n
-                    val sx = cx + (tx - centerTx).toFloat() * tilePx
-                    val sy = cy + (ty - centerTy).toFloat() * tilePx
-                    val bmp = TileLoader.cached(source, z, wrapped, ty)
-                    if (bmp == null) {
-                        TileLoader.request(context, source, z, wrapped, ty, bump)
+            for (tileY in firstY..lastY) {
+                if (tileY < 0 || tileY >= tilesPerSide) continue
+                for (tileX in firstX..lastX) {
+                    val wrappedX = ((tileX % tilesPerSide) + tilesPerSide) % tilesPerSide
+                    val screenX = centerX + (tileX - centerTileX).toFloat() * tilePx
+                    val screenY = centerY + (tileY - centerTileY).toFloat() * tilePx
+                    val tile = TileLoader.cached(source, tileZoom, wrappedX, tileY)
+                    if (tile == null) {
+                        TileLoader.request(context, source, tileZoom, wrappedX, tileY, onTileLoaded)
                         drawRect(
-                            if (darken) Color(0x14FFFFFF) else Color(0x14000000),
-                            topLeft = Offset(sx, sy),
+                            palette.loadingTile,
+                            topLeft = Offset(screenX, screenY),
                             size = Size(tilePx, tilePx)
                         )
                     } else {
                         drawImage(
-                            image = bmp,
+                            image = tile,
                             srcOffset = IntOffset.Zero,
-                            srcSize = IntSize(bmp.width, bmp.height),
-                            dstOffset = IntOffset(sx.toInt(), sy.toInt()),
+                            srcSize = IntSize(tile.width, tile.height),
+                            dstOffset = IntOffset(screenX.toInt(), screenY.toInt()),
                             dstSize = IntSize(tilePx.toInt() + 1, tilePx.toInt() + 1),
                             filterQuality = FilterQuality.Medium,
                             colorFilter = if (darken) DARK_TILE_FILTER else null
@@ -283,17 +180,17 @@ fun TileMap(
             }
 
             val world = baseTile * 2f.pow(camera.zoom)
-            fun project(p: LatLon): Offset = Offset(
-                cx + ((lonToNx(p.lon) - lonToNx(camera.lon)) * world).toFloat(),
-                cy + ((latToNy(p.lat) - latToNy(camera.lat)) * world).toFloat()
+            fun project(point: LatLon): Offset = Offset(
+                centerX + ((lonToWorldX(point.lon) - lonToWorldX(camera.lon)) * world).toFloat(),
+                centerY + ((latToWorldY(point.lat) - latToWorldY(camera.lat)) * world).toFloat()
             )
 
             for (line in lines) {
                 if (line.points.size < 2) continue
                 val path = Path()
-                line.points.forEachIndexed { i, p ->
-                    val o = project(p)
-                    if (i == 0) path.moveTo(o.x, o.y) else path.lineTo(o.x, o.y)
+                line.points.forEachIndexed { i, point ->
+                    val offset = project(point)
+                    if (i == 0) path.moveTo(offset.x, offset.y) else path.lineTo(offset.x, offset.y)
                 }
                 drawPath(
                     path, line.color.copy(alpha = 0.35f),
@@ -305,64 +202,46 @@ fun TileMap(
                 )
             }
 
-            for (m in markers) {
-                drawPin(project(m.point), m.color, m.ring, density, m.small)
+            for (marker in markers) {
+                drawPin(project(marker.point), marker.color, density)
             }
         }
     }
 }
 
-private fun DrawScope.drawPin(
-    at: Offset,
-    color: Color,
-    ring: Color,
-    density: Float,
-    small: Boolean
-) {
-    val r = (if (small) 7f else 11f) * density
-    val stemH = (if (small) 10f else 16f) * density
-    val head = Offset(at.x, at.y - stemH)
+private fun DrawScope.drawPin(at: Offset, color: Color, density: Float) {
+    val radius = 11f * density
+    val stemHeight = 16f * density
+    val head = Offset(at.x, at.y - stemHeight)
 
-    val path = Path().apply {
+    val stem = Path().apply {
         moveTo(at.x, at.y)
-        lineTo(at.x - r * 0.62f, head.y + r * 0.45f)
-        lineTo(at.x + r * 0.62f, head.y + r * 0.45f)
+        lineTo(at.x - radius * 0.62f, head.y + radius * 0.45f)
+        lineTo(at.x + radius * 0.62f, head.y + radius * 0.45f)
         close()
     }
-    drawCircle(Color.Black.copy(alpha = 0.18f), radius = r * 0.55f, center = Offset(at.x, at.y + 2f * density))
-    drawPath(path, color)
-    drawCircle(color, radius = r, center = head)
-    drawCircle(ring, radius = r, center = head, style = Stroke(width = 2.6f * density))
-    drawCircle(ring, radius = r * 0.36f, center = head)
+    drawCircle(Color.Black.copy(alpha = 0.18f), radius = radius * 0.55f, center = Offset(at.x, at.y + 2f * density))
+    drawPath(stem, color)
+    drawCircle(color, radius = radius, center = head)
+    drawCircle(Color.White, radius = radius, center = head, style = Stroke(width = 2.6f * density))
+    drawCircle(Color.White, radius = radius * 0.36f, center = head)
 }
 
-internal fun lonToNx(lon: Double): Double = (lon + 180.0) / 360.0
+private fun lonToWorldX(lon: Double): Double = (lon + 180.0) / 360.0
 
-internal fun latToNy(lat: Double): Double {
-    val l = Math.toRadians(lat.coerceIn(-85.05112878, 85.05112878))
-    return (1.0 - ln(tan(l) + 1.0 / cos(l)) / PI) / 2.0
+private fun latToWorldY(lat: Double): Double {
+    val latRadians = Math.toRadians(lat.coerceIn(-85.05112878, 85.05112878))
+    return (1.0 - ln(tan(latRadians) + 1.0 / cos(latRadians)) / PI) / 2.0
 }
 
-internal fun nxToLon(nx: Double): Double = nx * 360.0 - 180.0
+private fun worldXToLon(worldX: Double): Double = worldX * 360.0 - 180.0
 
-internal fun nyToLat(ny: Double): Double =
-    Math.toDegrees(atan(sinh(PI * (1.0 - 2.0 * ny))))
+private fun worldYToLat(worldY: Double): Double =
+    Math.toDegrees(atan(sinh(PI * (1.0 - 2.0 * worldY))))
 
-fun zoomForPair(a: LatLon, b: LatLon, widthPx: Float, densityScale: Float): Float {
-    val km = Geo.haversineKm(a, b).coerceAtLeast(0.4)
-    val target = Geo.zoomForSpan(a.lat, km * 1.8, widthPx.toDouble()).toFloat()
+fun zoomForPair(from: LatLon, to: LatLon, widthPx: Float, densityScale: Float): Float {
+    val distanceKm = Geo.haversineKm(from, to).coerceAtLeast(0.4)
+    val target = Geo.zoomForSpan(from.lat, distanceKm * 1.8, widthPx.toDouble()).toFloat()
     val tileAdjust = ln(densityScale.coerceIn(1f, 2f)) / ln(2f)
     return (target - tileAdjust).coerceIn(MapCamera.MIN_ZOOM, MapCamera.MAX_ZOOM)
 }
-
-data class MapTheme(val source: TileSource, val darken: Boolean) {
-    val attribution: String get() = source.attribution
-}
-
-fun mapThemeFor(style: nl.fietsweer.app.data.MapStyle, dark: Boolean): MapTheme =
-    when (style) {
-        nl.fietsweer.app.data.MapStyle.SOFT -> MapTheme(TileSource.OSM_HOT, false)
-        nl.fietsweer.app.data.MapStyle.LIGHT -> MapTheme(TileSource.OSM, false)
-        nl.fietsweer.app.data.MapStyle.DARK -> MapTheme(TileSource.OSM, true)
-        nl.fietsweer.app.data.MapStyle.AUTO -> MapTheme(TileSource.OSM, dark)
-    }

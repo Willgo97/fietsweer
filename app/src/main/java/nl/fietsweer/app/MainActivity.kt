@@ -7,14 +7,14 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import nl.fietsweer.app.data.Prefs
+import nl.fietsweer.app.data.SettingsStore
 import nl.fietsweer.app.notify.AlertScheduler
 import nl.fietsweer.app.ui.AppViewModel
 import nl.fietsweer.app.ui.FietsweerRoot
 
 class MainActivity : ComponentActivity() {
 
-    private val vm: AppViewModel by viewModels()
+    private val viewModel: AppViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
@@ -24,7 +24,7 @@ class MainActivity : ComponentActivity() {
             navigationBarStyle = SystemBarStyle.auto(0, 0)
         )
 
-        Prefs.get(this).reload()
+        SettingsStore.get(this).reload()
         AlertScheduler.rescheduleAll(this)
 
         val versionName = runCatching {
@@ -32,9 +32,9 @@ class MainActivity : ComponentActivity() {
         }.getOrNull() ?: "1.0"
 
         setContent {
-            FietsweerRoot(vm, versionName)
+            FietsweerRoot(viewModel, versionName)
         }
 
-        vm.refresh(force = false)
+        viewModel.refresh(force = false)
     }
 }

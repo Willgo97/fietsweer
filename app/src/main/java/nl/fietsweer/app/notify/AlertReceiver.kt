@@ -9,17 +9,17 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
-import nl.fietsweer.app.data.Prefs
+import nl.fietsweer.app.data.SettingsStore
 
 class AlertReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
-        val id = intent.getStringExtra(EXTRA_ALERT_ID).orEmpty()
-        enqueue(context, id)
+        val alertId = intent.getStringExtra(EXTRA_ALERT_ID).orEmpty()
+        enqueue(context, alertId)
 
-        val prefs = Prefs.get(context)
-        prefs.reload()
-        prefs.current.alerts.firstOrNull { it.id == id }?.let {
+        val store = SettingsStore.get(context)
+        store.reload()
+        store.current.alerts.firstOrNull { it.id == alertId }?.let {
             AlertScheduler.scheduleNext(context, it)
         }
     }

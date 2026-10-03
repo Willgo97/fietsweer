@@ -7,7 +7,6 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.Color
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -17,30 +16,29 @@ import nl.fietsweer.app.R
 import nl.fietsweer.app.data.Alert
 import nl.fietsweer.app.domain.Advice
 import nl.fietsweer.app.domain.AdviceText
-import nl.fietsweer.app.domain.Fmt
-import nl.fietsweer.app.domain.Layer
-import nl.fietsweer.app.domain.Need
-import nl.fietsweer.app.domain.Txt
+import nl.fietsweer.app.domain.Formatter
+import nl.fietsweer.app.domain.Strings
+import nl.fietsweer.app.ui.theme.SystemColors
 
 object Notifier {
 
-    const val CHANNEL_ID = "commute_advice"
+    private const val CHANNEL_ID = "commute_advice"
     private const val SUMMARY_BASE_ID = 7000
 
-    fun ensureChannel(context: Context, txt: Txt) {
-        val nm = context.getSystemService(NotificationManager::class.java) ?: return
+    fun ensureChannel(context: Context, strings: Strings) {
+        val notificationManager = context.getSystemService(NotificationManager::class.java) ?: return
         val channel = NotificationChannel(
             CHANNEL_ID,
-            txt.notifChannelName,
+            strings.notifChannelName,
             NotificationManager.IMPORTANCE_HIGH
         ).apply {
-            description = txt.notifChannelBody
+            description = strings.notifChannelBody
             enableLights(true)
-            lightColor = Color.parseColor("#17A2A8")
+            lightColor = SystemColors.notificationLight
             enableVibration(true)
             setShowBadge(true)
         }
-        nm.createNotificationChannel(channel)
+        notificationManager.createNotificationChannel(channel)
     }
 
     fun canPost(context: Context): Boolean {
@@ -53,49 +51,38 @@ object Notifier {
         return NotificationManagerCompat.from(context).areNotificationsEnabled()
     }
 
-    fun postAdvice(context: Context, alert: Alert?, advice: Advice, txt: Txt) {
+    fun postAdvice(context: Context, alert: Alert?, advice: Advice, strings: Strings) {
         if (!canPost(context)) return
-        ensureChannel(context, txt)
-        val fmt = Fmt(txt)
+        ensureChannel(context, strings)
+        val format = Formatter(strings)
 
-        val title = AdviceText.headline(advice, txt)
-        val chips = AdviceText.chips(advice, txt)
-        val shortLine = if (chips.isEmpty()) txt.adviceNoneSub
-        else chips.joinToString(" · ") { it.first }
+        val title = AdviceText.headline(advice, strings)
+        val summaryLine = AdviceText.chipLine(advice, strings)
 
-        val lines = advice.rides.map { AdviceText.legLine(it, txt, fmt) }
-        val big = buildString {
-            append(shortLine)
-            for (l in lines) { append('\n'); append(l) }
+        val legLines = advice.rides.map { AdviceText.legLine(it, strings, format) }
+        val expandedText = buildString {
+            append(summaryLine)
+            for (line in legLines) { append('\n'); append(line) }
         }
 
-        val open = PendingIntent.getActivity(
+        val openApp = PendingIntent.getActivity(
             context, 1,
             Intent(context, MainActivity::class.java)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        val accent = when {
-            advice.rain == Need.YES && advice.layer == Layer.WINTER -> Color.parseColor("#8A5BD6")
-            advice.rain == Need.YES -> Color.parseColor("#2D7FF0")
-            advice.layer == Layer.WINTER -> Color.parseColor("#C85A2B")
-            advice.layer == Layer.VEST -> Color.parseColor("#E8873D")
-            advice.rain == Need.MAYBE -> Color.parseColor("#E5B33C")
-            else -> Color.parseColor("#35C46F")
-        }
-
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
-            .setContentText(lines.firstOrNull() ?: shortLine)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(big))
+            .setContentText(legLines.firstOrNull() ?: summaryLine)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(expandedText))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
-            .setColor(accent)
+            .setColor(SystemColors.adviceAccent(advice))
             .setColorized(false)
             .setAutoCancel(true)
-            .setContentIntent(open)
+            .setContentIntent(openApp)
             .setWhen(System.currentTimeMillis())
             .setShowWhen(true)
 
@@ -106,29 +93,29 @@ object Notifier {
                     .putExtra(SnoozeReceiver.EXTRA_ALERT_ID, alert?.id ?: ""),
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
             )
-            builder.addAction(0, txt.notifSnooze, snooze)
+            builder.addAction(0, strings.notifSnooze, snooze)
         }
 
-        val id = SUMMARY_BASE_ID + (alert?.id?.hashCode()?.and(0xFF) ?: 0)
-        runCatching { NotificationManagerCompat.from(context).notify(id, builder.build()) }
+        val notificationId = SUMMARY_BASE_ID + (alert?.id?.hashCode()?.and(0xFF) ?: 0)
+        runCatching { NotificationManagerCompat.from(context).notify(notificationId, builder.build()) }
     }
 
-    fun postProblem(context: Context, txt: Txt, message: String) {
+    fun postProblem(context: Context, strings: Strings, message: String) {
         if (!canPost(context)) return
-        ensureChannel(context, txt)
-        val open = PendingIntent.getActivity(
+        ensureChannel(context, strings)
+        val openApp = PendingIntent.getActivity(
             context, 3,
             Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
-        val n = NotificationCompat.Builder(context, CHANNEL_ID)
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle(txt.notifNoData)
+            .setContentTitle(strings.notifNoData)
             .setContentText(message)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setAutoCancel(true)
-            .setContentIntent(open)
+            .setContentIntent(openApp)
             .build()
-        runCatching { NotificationManagerCompat.from(context).notify(SUMMARY_BASE_ID + 500, n) }
+        runCatching { NotificationManagerCompat.from(context).notify(SUMMARY_BASE_ID + 500, notification) }
     }
 }

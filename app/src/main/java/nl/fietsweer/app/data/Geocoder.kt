@@ -7,27 +7,27 @@ import java.net.URLEncoder
 
 object Geocoder {
 
-    suspend fun search(query: String, near: LatLon?, language: String): List<Place> {
-        val q = query.trim()
-        if (q.length < 2) return emptyList()
+    suspend fun search(query: String, near: LatLon, language: String): List<Place> {
+        val trimmed = query.trim()
+        if (trimmed.length < 2) return emptyList()
         val url = "https://geocoding-api.open-meteo.com/v1/search" +
-            "?name=${URLEncoder.encode(q, "UTF-8")}&count=12&language=$language&format=json"
+            "?name=${URLEncoder.encode(trimmed, "UTF-8")}&count=12&language=$language&format=json"
         val body = Net.getText(url, 12_000)
         val results = JSONObject(body).optJSONArray("results") ?: return emptyList()
-        val out = ArrayList<Place>(results.length())
+        val places = ArrayList<Place>(results.length())
         for (i in 0 until results.length()) {
-            val o = results.getJSONObject(i)
-            val name = o.optString("name").ifBlank { continue }
-            val lat = o.optDouble("latitude", Double.NaN)
-            val lon = o.optDouble("longitude", Double.NaN)
+            val result = results.getJSONObject(i)
+            val name = result.optString("name").ifBlank { continue }
+            val lat = result.optDouble("latitude", Double.NaN)
+            val lon = result.optDouble("longitude", Double.NaN)
             if (lat.isNaN() || lon.isNaN()) continue
-            val admin2 = o.optString("admin2").takeIf { it.isNotBlank() && it != name }
-            val admin1 = o.optString("admin1").takeIf { it.isNotBlank() && it != name }
-            val country = o.optString("country_code").takeIf { it.isNotBlank() }
-            val detail = listOfNotNull(admin2 ?: admin1, country).joinToString(", ")
-            out += Place(name, lat, lon, detail)
+            val district = result.optString("admin2").takeIf { it.isNotBlank() && it != name }
+            val province = result.optString("admin1").takeIf { it.isNotBlank() && it != name }
+            val country = result.optString("country_code").takeIf { it.isNotBlank() }
+            val detail = listOfNotNull(district ?: province, country).joinToString(", ")
+            places += Place(name, lat, lon, detail)
         }
-        return if (near == null) out else out.sortedWith(
+        return places.sortedWith(
             compareByDescending<Place> { it.detail.endsWith("NL") }
                 .thenBy { Geo.haversineKm(near, it.toLatLon()) }
         )
@@ -39,25 +39,27 @@ object Geocoder {
             "&lat=${"%.6f".format(java.util.Locale.US, point.lat)}" +
             "&lon=${"%.6f".format(java.util.Locale.US, point.lon)}" +
             "&accept-language=$language"
-        val o = JSONObject(Net.getText(url, 12_000))
-        val addr = o.optJSONObject("address")
-        val road = addr?.optString("road")?.takeIf { it.isNotBlank() }
-        val houseNumber = addr?.optString("house_number")?.takeIf { it.isNotBlank() }
-        val place = listOf("city", "town", "village", "municipality", "suburb", "hamlet")
-            .firstNotNullOfOrNull { addr?.optString(it)?.takeIf { v -> v.isNotBlank() } }
+        val response = JSONObject(Net.getText(url, 12_000))
+        val address = response.optJSONObject("address")
+        val road = address?.optString("road")?.takeIf { it.isNotBlank() }
+        val houseNumber = address?.optString("house_number")?.takeIf { it.isNotBlank() }
+        val town = listOf("city", "town", "village", "municipality", "suburb", "hamlet")
+            .firstNotNullOfOrNull { key -> address?.optString(key)?.takeIf { it.isNotBlank() } }
         val label = when {
             road != null && houseNumber != null -> "$road $houseNumber"
             road != null -> road
-            o.optString("name").isNotBlank() -> o.optString("name")
-            place != null -> place
+            response.optString("name").isNotBlank() -> response.optString("name")
+            town != null -> town
             else -> null
         } ?: return@runCatching null
         Place(
             name = label,
             lat = point.lat,
             lon = point.lon,
-            detail = listOfNotNull(place.takeIf { it != label }, addr?.optString("postcode")?.takeIf { it.isNotBlank() })
-                .joinToString(" · ")
+            detail = listOfNotNull(
+                town.takeIf { it != label },
+                address?.optString("postcode")?.takeIf { it.isNotBlank() }
+            ).joinToString(" · ")
         )
     }.getOrNull()
 }

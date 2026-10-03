@@ -1,7 +1,10 @@
 package nl.fietsweer.app.data
 
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import nl.fietsweer.app.domain.Geo
 import nl.fietsweer.app.domain.LatLon
+import java.util.UUID
 
 @Serializable
 data class Place(
@@ -19,7 +22,7 @@ enum class Coverage { OUTBOUND, RETURN, BOTH }
 
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 
-enum class Lang { SYSTEM, NL, EN }
+enum class Language { SYSTEM, NL, EN }
 
 enum class MapStyle { AUTO, LIGHT, DARK, SOFT }
 
@@ -35,6 +38,10 @@ data class Alert(
     val onlyWhenNeeded: Boolean = false
 ) {
     val minutesOfDay: Int get() = hour * 60 + minute
+
+    companion object {
+        fun create() = Alert(id = UUID.randomUUID().toString())
+    }
 }
 
 @Serializable
@@ -47,10 +54,10 @@ data class Settings(
     val returnHour: Int = 17,
     val returnMinute: Int = 30,
 
-    val outboundEarlyMin: Int = 0,
-    val outboundLateMin: Int = 60,
-    val returnEarlyMin: Int = 60,
-    val returnLateMin: Int = 60,
+    @SerialName("outboundEarlyMin") val outboundEarlyMinutes: Int = 0,
+    @SerialName("outboundLateMin") val outboundLateMinutes: Int = 60,
+    @SerialName("returnEarlyMin") val returnEarlyMinutes: Int = 60,
+    @SerialName("returnLateMin") val returnLateMinutes: Int = 60,
 
     val speedKmh: Int = 19,
     val windAdjustSpeed: Boolean = true,
@@ -64,24 +71,31 @@ data class Settings(
 
     val theme: ThemeMode = ThemeMode.SYSTEM,
     val dynamicColor: Boolean = true,
-    val lang: Lang = Lang.SYSTEM,
+    @SerialName("lang") val language: Language = Language.SYSTEM,
     val mapStyle: MapStyle = MapStyle.AUTO,
 
-    val setupDone: Boolean = false,
-    val lastNotifiedAt: Long = 0L
+    val setupDone: Boolean = false
 ) {
-    val ready: Boolean get() = home != null && work != null
+    val hasRoute: Boolean get() = home != null && work != null
+
+    val routeKm: Double
+        get() = if (home == null || work == null) 0.0 else Geo.routeKm(home.toLatLon(), work.toLatLon())
+
+    fun withAlert(alert: Alert): Settings {
+        val others = alerts.filterNot { it.id == alert.id }
+        return copy(alerts = (others + alert).sortedBy { it.minutesOfDay })
+    }
 
     fun hourFor(leg: Leg): Int = if (leg == Leg.OUTBOUND) outboundHour else returnHour
     fun minuteFor(leg: Leg): Int = if (leg == Leg.OUTBOUND) outboundMinute else returnMinute
 
-    fun earlyMinFor(leg: Leg): Int =
-        (if (leg == Leg.OUTBOUND) outboundEarlyMin else returnEarlyMin).coerceIn(0, FLEX_MAX_MIN)
+    fun earlyMinutesFor(leg: Leg): Int =
+        (if (leg == Leg.OUTBOUND) outboundEarlyMinutes else returnEarlyMinutes).coerceIn(0, MAX_SLACK_MINUTES)
 
-    fun lateMinFor(leg: Leg): Int =
-        (if (leg == Leg.OUTBOUND) outboundLateMin else returnLateMin).coerceIn(0, FLEX_MAX_MIN)
+    fun lateMinutesFor(leg: Leg): Int =
+        (if (leg == Leg.OUTBOUND) outboundLateMinutes else returnLateMinutes).coerceIn(0, MAX_SLACK_MINUTES)
 }
 
-const val FLEX_MAX_MIN = 180
+const val MAX_SLACK_MINUTES = 180
 
-val LatLonFallback = LatLon(52.1326, 5.2913)
+val CenterOfNetherlands = LatLon(52.1326, 5.2913)
