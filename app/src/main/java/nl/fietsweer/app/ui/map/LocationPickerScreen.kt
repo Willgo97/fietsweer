@@ -43,8 +43,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import nl.fietsweer.app.data.DeviceLocation
 import nl.fietsweer.app.data.DeviceLocation.toLatLon
@@ -132,6 +134,7 @@ private fun LocationPickerScreen(
         resolving = true
         delay(REVERSE_LOOKUP_DELAY_MS)
         val place = Geocoder.reverse(camera.center, strings.locale.language)
+        ensureActive()
         resolved = place ?: camera.centerPlace()
         resolving = false
     }
@@ -190,15 +193,22 @@ private fun LocationPickerScreen(
                         searchJob = scope.launch {
                             delay(SEARCH_DELAY_MS)
                             searching = true
-                            results = runCatching {
-                                Geocoder.search(text, camera.center, strings.locale.language)
-                            }.getOrDefault(emptyList())
-                            searching = false
-                            showResults = true
+                            try {
+                                results = try {
+                                    Geocoder.search(text, camera.center, strings.locale.language)
+                                } catch (e: CancellationException) {
+                                    throw e
+                                } catch (e: Exception) {
+                                    emptyList()
+                                }
+                                showResults = true
+                            } finally {
+                                searching = false
+                            }
                         }
                     }
                 },
-                onClear = { query = ""; results = emptyList(); showResults = false },
+                onClear = { searchJob?.cancel(); query = ""; results = emptyList(); showResults = false },
                 onSearch = {
                     keyboard?.hide()
                     results.firstOrNull()?.let {
