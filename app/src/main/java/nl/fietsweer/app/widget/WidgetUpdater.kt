@@ -90,9 +90,7 @@ class WidgetWorker(context: Context, params: WorkerParameters) :
     CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
-        val store = SettingsStore.get(applicationContext)
-        store.reload()
-        val settings = store.current
+        val settings = SettingsStore.get(applicationContext).current
         val forecast = if (settings.hasRoute) ForecastRepository.fetchDirect(settings) else null
         WidgetUpdater.publish(applicationContext, settings, forecast)
         return Result.success()

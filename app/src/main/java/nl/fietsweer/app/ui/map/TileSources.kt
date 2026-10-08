@@ -75,7 +75,7 @@ object TileLoader {
                 val bytes = if (file.exists() && file.length() > 0) {
                     file.readBytes()
                 } else {
-                    val downloaded = Net.blockingBytes(source.url(zoom, x, y), 15_000)
+                    val downloaded = Net.blockingBytes(source.url(zoom, x, y), Net.IMAGE_TIMEOUT_MS)
                     runCatching {
                         file.parentFile?.mkdirs()
                         file.writeBytes(downloaded)

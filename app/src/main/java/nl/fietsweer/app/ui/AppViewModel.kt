@@ -48,7 +48,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun refresh(force: Boolean = false) {
         viewModelScope.launch {
-            ForecastRepository.refresh(getApplication(), force)
+            ForecastRepository.refresh(getApplication(), force) { settings, forecast ->
+                WidgetUpdater.publish(getApplication(), settings, forecast)
+            }
             RadarAnimation.prepare()
         }
     }

@@ -15,9 +15,7 @@ import nl.fietsweer.app.widget.WidgetUpdater
 class AlertWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
-        val store = SettingsStore.get(applicationContext)
-        store.reload()
-        val settings = store.current
+        val settings = SettingsStore.get(applicationContext).current
         val strings = Strings.of(settings.language)
 
         if (!settings.hasRoute) return Result.success()

@@ -6,19 +6,17 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import nl.fietsweer.app.widget.WidgetUpdater
 
 data class ForecastState(
     val loading: Boolean = false,
     val forecast: RouteForecast? = null,
-    val error: String? = null
+    val failed: Boolean = false
 )
 
 object ForecastRepository {
 
     private const val FRESH_FOR_MS = 15 * 60 * 1000L
-
-    private const val STALE = "stale"
+    private const val DIRECT_FRESH_FOR_MS = 10 * 60 * 1000L
 
     private val mutableState = MutableStateFlow(ForecastState())
     val state: StateFlow<ForecastState> = mutableState.asStateFlow()
@@ -29,12 +27,18 @@ object ForecastRepository {
     private fun routeKeyOf(settings: Settings): String =
         "${settings.home?.lat},${settings.home?.lon}|${settings.work?.lat},${settings.work?.lon}|${settings.useRadar}"
 
-    private fun isFresh(settings: Settings): Boolean {
+    private fun isSameRoute(settings: Settings): Boolean = routeKey == routeKeyOf(settings)
+
+    private fun isFresh(settings: Settings, maxAgeMs: Long = FRESH_FOR_MS): Boolean {
         val forecast = mutableState.value.forecast ?: return false
-        return routeKey == routeKeyOf(settings) && System.currentTimeMillis() - forecast.fetchedAt < FRESH_FOR_MS
+        return isSameRoute(settings) && System.currentTimeMillis() - forecast.fetchedAt < maxAgeMs
     }
 
-    suspend fun refresh(context: Context, force: Boolean = false) {
+    suspend fun refresh(
+        context: Context,
+        force: Boolean = false,
+        onNewForecast: (Settings, RouteForecast) -> Unit
+    ) {
         val settings = SettingsStore.get(context).current
         val home = settings.home ?: return
         val work = settings.work ?: return
@@ -42,23 +46,19 @@ object ForecastRepository {
 
         lock.withLock {
             if (!force && isFresh(settings)) return
-            mutableState.value = mutableState.value.copy(loading = true, error = null)
+            mutableState.value = mutableState.value.copy(loading = true, failed = false)
             try {
                 val forecast = WeatherApi.fetch(home, work, settings.useRadar)
-                val sameRoute = routeKey == routeKeyOf(settings)
                 val previous = mutableState.value.forecast
-                if (forecast.hasModels || previous == null || !sameRoute) {
+                if (forecast.hasModels || previous == null || !isSameRoute(settings)) {
                     routeKey = routeKeyOf(settings)
-                    mutableState.value = ForecastState(loading = false, forecast = forecast, error = null)
-                    WidgetUpdater.publish(context, settings, forecast)
+                    mutableState.value = ForecastState(loading = false, forecast = forecast)
+                    onNewForecast(settings, forecast)
                 } else {
-                    mutableState.value = mutableState.value.copy(loading = false, error = STALE)
+                    mutableState.value = mutableState.value.copy(loading = false, failed = true)
                 }
             } catch (e: Throwable) {
-                mutableState.value = mutableState.value.copy(
-                    loading = false,
-                    error = e.message ?: e::class.java.simpleName
-                )
+                mutableState.value = mutableState.value.copy(loading = false, failed = true)
             }
         }
     }
@@ -67,15 +67,13 @@ object ForecastRepository {
         val home = settings.home ?: return null
         val work = settings.work ?: return null
         val cached = mutableState.value.forecast
-        if (cached != null && routeKey == routeKeyOf(settings) &&
-            System.currentTimeMillis() - cached.fetchedAt < 10 * 60 * 1000L
-        ) return cached
+        if (isFresh(settings, DIRECT_FRESH_FOR_MS)) return cached
         return runCatching { WeatherApi.fetch(home, work, settings.useRadar) }
             .getOrNull()
             ?.let { fresh ->
-                if (!fresh.hasModels && cached != null && routeKey == routeKeyOf(settings)) return cached
+                if (!fresh.hasModels && cached != null && isSameRoute(settings)) return cached
                 routeKey = routeKeyOf(settings)
-                mutableState.value = ForecastState(loading = false, forecast = fresh, error = null)
+                mutableState.value = ForecastState(loading = false, forecast = fresh)
                 fresh
             }
     }

@@ -1,9 +1,7 @@
 package nl.fietsweer.app.data
 
-import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
-import android.content.pm.PackageManager
 import android.location.Location
 import android.location.LocationManager
 import android.os.CancellationSignal
@@ -16,6 +14,8 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
+import nl.fietsweer.app.data.DeviceLocation.toLatLon
+import java.util.Locale
 import kotlin.coroutines.resume
 
 class LocalWeather(val placeName: String, val point: LatLon, val forecast: RouteForecast)
@@ -38,14 +38,10 @@ object LocalForecast {
 
     private val lock = Mutex()
 
-    fun hasPermission(context: Context): Boolean =
-        ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) ==
-            PackageManager.PERMISSION_GRANTED
-
     suspend fun refresh(context: Context, settings: Settings, language: String) {
         val home = settings.home ?: return
         val work = settings.work ?: return
-        if (!hasPermission(context)) {
+        if (!DeviceLocation.hasPermission(context)) {
             mutableState.value = null
             return
         }
@@ -62,7 +58,7 @@ object LocalForecast {
             ) return
 
             val name = Geocoder.town(here, language)
-                ?: "%.2f, %.2f".format(java.util.Locale.US, here.lat, here.lon)
+                ?: "%.2f, %.2f".format(Locale.US, here.lat, here.lon)
             val place = Place(name, here.lat, here.lon)
             val forecast = runCatching { WeatherApi.fetch(place, place, settings.useRadar, pointCount = 1) }
                 .getOrNull()
@@ -82,9 +78,7 @@ object LocalForecast {
         val manager = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager ?: return null
         if (!LocationManagerCompat.isLocationEnabled(manager)) return null
 
-        val last = listOf(LocationManager.NETWORK_PROVIDER, LocationManager.GPS_PROVIDER, LocationManager.PASSIVE_PROVIDER)
-            .mapNotNull { runCatching { manager.getLastKnownLocation(it) }.getOrNull() }
-            .maxByOrNull { it.time }
+        val last = DeviceLocation.lastKnown(manager)
         if (last != null && System.currentTimeMillis() - last.time < LOCATION_MAX_AGE_MS) return last.toLatLon()
 
         // Phones without Google services have no network location, so ask every provider
@@ -109,6 +103,4 @@ object LocalForecast {
         }
         return (fresh ?: last)?.toLatLon()
     }
-
-    private fun Location.toLatLon() = LatLon(latitude, longitude)
 }

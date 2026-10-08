@@ -34,10 +34,6 @@ class SettingsStore private constructor(context: Context) {
         mutableState.value = next
     }
 
-    fun reload() {
-        mutableState.value = read()
-    }
-
     companion object {
         private const val KEY = "settings_v1"
 

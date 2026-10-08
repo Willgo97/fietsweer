@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import kotlinx.coroutines.launch
+import nl.fietsweer.app.data.DeviceLocation
 import nl.fietsweer.app.data.ForecastState
 import nl.fietsweer.app.data.Leg
 import nl.fietsweer.app.data.LocalForecast
@@ -97,7 +98,7 @@ fun ForecastScreen(
     val refreshLocal = { scope.launch { LocalForecast.refresh(context, settings, strings.locale.language) } }
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { refreshLocal() }
     LaunchedEffect(Unit) {
-        if (!settings.askedLocation && !LocalForecast.hasPermission(context)) {
+        if (!settings.askedLocation && !DeviceLocation.hasPermission(context)) {
             onAskedLocation()
             permission.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
         }
@@ -113,7 +114,7 @@ fun ForecastScreen(
         ScreenList(contentPadding) {
             if (forecast == null) item { LoadingBlock(strings.updating) }
             else item { NoForecastCard(forecast, onRefresh) }
-            if (forecastState.error != null) {
+            if (forecastState.failed) {
                 item { InfoCard(strings.updateFailedTitle, strings.updateFailedBody, strings.retry, onAction = onRefresh) }
             }
             if (forecast != null) item { DailyOutlook(forecast) }

@@ -1,8 +1,7 @@
 package nl.fietsweer.app.data
 
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.asImageBitmap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -13,7 +12,7 @@ import org.json.JSONObject
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 
-class RadarFrame(val timeMs: Long, val image: ImageBitmap)
+class RadarFrame(val timeMs: Long, val bitmap: Bitmap)
 
 // Buienradar's web-mercator radar of the Netherlands: past 50 minutes and two hours ahead,
 // every 10 minutes, as images that line up with OpenStreetMap tiles.
@@ -47,9 +46,9 @@ object RadarImages {
             val entry = times.getJSONObject(i)
             async(Dispatchers.IO) {
                 runCatching {
-                    val bytes = Net.blockingBytes(entry.getString("url"), 15_000)
+                    val bytes = Net.blockingBytes(entry.getString("url"), Net.IMAGE_TIMEOUT_MS)
                     val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: return@runCatching null
-                    RadarFrame(utcMillis(entry.getString("timestamp")), bitmap.asImageBitmap())
+                    RadarFrame(utcMillis(entry.getString("timestamp")), bitmap)
                 }.getOrNull()
             }
         }.awaitAll().filterNotNull().sortedBy { it.timeMs }

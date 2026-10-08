@@ -98,8 +98,21 @@ data class Settings(
 
     fun lateMinutesFor(leg: Leg): Int =
         (if (leg == Leg.OUTBOUND) outboundLateMinutes else returnLateMinutes).coerceIn(0, MAX_SLACK_MINUTES)
+
+    fun withEarlyMinutes(leg: Leg, minutes: Int): Settings =
+        if (leg == Leg.OUTBOUND) copy(outboundEarlyMinutes = minutes) else copy(returnEarlyMinutes = minutes)
+
+    fun withLateMinutes(leg: Leg, minutes: Int): Settings =
+        if (leg == Leg.OUTBOUND) copy(outboundLateMinutes = minutes) else copy(returnLateMinutes = minutes)
+
+    // The winter coat always starts at least a couple of degrees below the vest.
+    fun withVestBelow(celsius: Double): Settings =
+        copy(vestBelow = celsius, winterCoatBelow = minOf(winterCoatBelow, celsius - MIN_LAYER_GAP_C))
+
+    fun withWinterCoatBelow(celsius: Double): Settings =
+        copy(winterCoatBelow = celsius, vestBelow = maxOf(vestBelow, celsius + MIN_LAYER_GAP_C))
 }
 
-const val MAX_SLACK_MINUTES = 180
+private const val MIN_LAYER_GAP_C = 2.0
 
-val CenterOfNetherlands = LatLon(52.1326, 5.2913)
+const val MAX_SLACK_MINUTES = 180

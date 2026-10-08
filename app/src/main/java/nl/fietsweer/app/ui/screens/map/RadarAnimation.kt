@@ -1,7 +1,6 @@
 package nl.fietsweer.app.ui.screens.map
 
 import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -29,7 +28,7 @@ object RadarAnimation {
         val times = raw.map { it.timeMs }
         if (mutableState.value?.times == times) return@withLock
         val prepared = withContext(Dispatchers.Default) {
-            val smoothed = raw.map { RadarSmoothing.smooth(it.image.asAndroidBitmap()) }
+            val smoothed = raw.map { RadarSmoothing.smooth(it.bitmap) }
             PreparedRadar(times, smoothed.map { it.asImageBitmap() }, RadarFlow.between(smoothed))
         }
         mutableState.value = prepared

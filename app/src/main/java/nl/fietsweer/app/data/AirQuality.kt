@@ -23,6 +23,7 @@ object AirQuality {
     private const val SPAN_KM = 160.0
     private const val FRESH_MS = 30 * 60_000L
     private const val MOVED_KM = 20.0
+    private const val KM_PER_DEGREE = 111.0
 
     // Grains per m³ at which each pollen type counts as "high"; the layer shows the worst ratio.
     private val POLLEN_HIGH = mapOf(
@@ -48,8 +49,8 @@ object AirQuality {
     }
 
     private suspend fun download(centre: LatLon): AirGrid {
-        val latStep = SPAN_KM / 111.0 / (GRID - 1)
-        val lonStep = SPAN_KM / (111.0 * cos(Math.toRadians(centre.lat))) / (GRID - 1)
+        val latStep = SPAN_KM / KM_PER_DEGREE / (GRID - 1)
+        val lonStep = SPAN_KM / (KM_PER_DEGREE * cos(Math.toRadians(centre.lat))) / (GRID - 1)
         val north = centre.lat + latStep * (GRID - 1) / 2
         val west = centre.lon - lonStep * (GRID - 1) / 2
         val points = (0 until GRID).flatMap { row ->
@@ -57,16 +58,16 @@ object AirQuality {
         }
         val variables = (listOf("european_aqi", "uv_index") + POLLEN_HIGH.keys).joinToString(",")
         val url = "https://air-quality-api.open-meteo.com/v1/air-quality" +
-            "?latitude=${points.joinToString(",") { "%.3f".format(java.util.Locale.US, it.lat) }}" +
-            "&longitude=${points.joinToString(",") { "%.3f".format(java.util.Locale.US, it.lon) }}" +
+            "?latitude=${points.joinToString(",") { it.lat.toUrlDegrees(3) }}" +
+            "&longitude=${points.joinToString(",") { it.lon.toUrlDegrees(3) }}" +
             "&hourly=$variables&forecast_days=2&timeformat=unixtime"
         val locations = JSONArray(Net.getText(url))
         val first = locations.getJSONObject(0).getJSONObject("hourly")
-        val times = first.getJSONArray("time").let { array -> LongArray(array.length()) { array.getLong(it) * 1000 } }
+        val times = first.getJSONArray("time").toMillis()
 
-        fun series(index: Int, key: String): JSONArray? = locations.getJSONObject(index).getJSONObject("hourly").optJSONArray(key)
-        fun valueOf(array: JSONArray?, hour: Int): Double =
-            if (array == null || array.isNull(hour)) Double.NaN else array.optDouble(hour, Double.NaN)
+        fun series(index: Int, key: String): DoubleArray? =
+            locations.getJSONObject(index).getJSONObject("hourly").optJSONArray(key)?.toDoubles()
+        fun valueOf(values: DoubleArray?, hour: Int): Double = values?.getOrNull(hour) ?: Double.NaN
 
         val air = ArrayList<DoubleArray>(times.size)
         val uv = ArrayList<DoubleArray>(times.size)

@@ -17,9 +17,7 @@ class AlertReceiver : BroadcastReceiver() {
         val alertId = intent.getStringExtra(EXTRA_ALERT_ID).orEmpty()
         enqueue(context, alertId)
 
-        val store = SettingsStore.get(context)
-        store.reload()
-        store.current.alerts.firstOrNull { it.id == alertId }?.let {
+        SettingsStore.get(context).current.alerts.firstOrNull { it.id == alertId }?.let {
             AlertScheduler.scheduleNext(context, it)
         }
     }

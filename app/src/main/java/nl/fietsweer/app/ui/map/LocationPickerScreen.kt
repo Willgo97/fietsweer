@@ -49,7 +49,6 @@ import androidx.core.content.ContextCompat
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import nl.fietsweer.app.data.CenterOfNetherlands
 import nl.fietsweer.app.data.Geocoder
 import nl.fietsweer.app.data.LatLon
 import nl.fietsweer.app.data.Place
@@ -59,6 +58,8 @@ import nl.fietsweer.app.ui.components.SectionLabel
 import nl.fietsweer.app.ui.theme.AppTheme
 
 enum class RouteEnd { HOME, WORK }
+
+private val CenterOfNetherlands = LatLon(52.1326, 5.2913)
 
 @Composable
 fun RouteEndPicker(

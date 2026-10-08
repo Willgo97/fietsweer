@@ -52,7 +52,7 @@ fun TodayScreen(
         else departureWindow(forecast, engine, planned, nowTick)
     }
 
-    val errorCard: (@Composable () -> Unit)? = forecastState.error?.let {
+    val errorCard: (@Composable () -> Unit)? = if (!forecastState.failed) null else {
         {
             InfoCard(
                 title = strings.updateFailedTitle,

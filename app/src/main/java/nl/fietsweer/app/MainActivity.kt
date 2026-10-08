@@ -7,7 +7,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import nl.fietsweer.app.data.SettingsStore
 import nl.fietsweer.app.notify.AlertScheduler
 import nl.fietsweer.app.ui.AppViewModel
 import nl.fietsweer.app.ui.FietsweerRoot
@@ -24,7 +23,6 @@ class MainActivity : ComponentActivity() {
             navigationBarStyle = SystemBarStyle.auto(0, 0)
         )
 
-        SettingsStore.get(this).reload()
         AlertScheduler.rescheduleAll(this)
 
         val versionName = runCatching {
