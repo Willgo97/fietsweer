@@ -15,8 +15,8 @@ android {
         applicationId = "nl.fietsweer.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 5
-        versionName = "1.4"
+        versionCode = 6
+        versionName = "2.0"
         resourceConfigurations += listOf("en", "nl")
     }
 
