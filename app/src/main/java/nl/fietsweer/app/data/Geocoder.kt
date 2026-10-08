@@ -62,4 +62,15 @@ object Geocoder {
             ).joinToString(" · ")
         )
     }.getOrNull()
+
+    suspend fun town(point: LatLon, language: String): String? = runCatching {
+        val url = "https://nominatim.openstreetmap.org/reverse" +
+            "?format=jsonv2&zoom=10" +
+            "&lat=${"%.4f".format(java.util.Locale.US, point.lat)}" +
+            "&lon=${"%.4f".format(java.util.Locale.US, point.lon)}" +
+            "&accept-language=$language"
+        val address = JSONObject(Net.getText(url, 12_000)).optJSONObject("address")
+        listOf("city", "town", "village", "municipality")
+            .firstNotNullOfOrNull { key -> address?.optString(key)?.takeIf { it.isNotBlank() } }
+    }.getOrNull()
 }

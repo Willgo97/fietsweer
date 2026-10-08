@@ -16,15 +16,20 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import nl.fietsweer.app.data.RouteForecast
 import nl.fietsweer.app.domain.Sky
 import nl.fietsweer.app.domain.WeatherCode
-import nl.fietsweer.app.ui.components.Caption
 import nl.fietsweer.app.ui.components.SectionCard
+import nl.fietsweer.app.ui.components.charts.WindArrow
 import nl.fietsweer.app.ui.theme.AppTheme
+import java.time.DayOfWeek
+import java.time.Instant
+import java.time.ZoneId
 import kotlin.math.roundToInt
 
 @Composable
@@ -39,39 +44,58 @@ internal fun DailyOutlook(forecast: RouteForecast) {
     val precipitationSums = forecast.daily["precipitation_sum"]
     val rainChances = forecast.daily["precipitation_probability_max"]
     val weatherCodes = forecast.daily["weather_code"]
+    val windSpeeds = forecast.daily["wind_speed_10m_max"]
+    val windDirections = forecast.daily["wind_direction_10m_dominant"]
 
     val globalMin = minTemps?.filter { !it.isNaN() }?.minOrNull() ?: 0.0
     val globalMax = maxTemps?.filter { !it.isNaN() }?.maxOrNull() ?: 20.0
     val span = (globalMax - globalMin).coerceAtLeast(1.0)
 
-    SectionCard(title = strings.dailyOutlook) {
+    SectionCard(contentPadding = 14, verticalPadding = 6) {
         for (i in times.indices) {
             val low = minTemps?.getOrNull(i) ?: continue
             val high = maxTemps?.getOrNull(i) ?: continue
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 7.dp),
+                    .padding(vertical = 2.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     if (i == 0) strings.today.replaceFirstChar { it.uppercase() } else format.dayShort(times[i]),
                     style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.width(56.dp)
+                    modifier = Modifier.width(52.dp)
                 )
                 Text(
                     skyGlyph(WeatherCode.sky((weatherCodes?.getOrNull(i) ?: 0.0).toInt())),
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.width(30.dp)
                 )
-                Caption(
+                Text(
                     "${(rainChances?.getOrNull(i) ?: 0.0).roundToInt()}%",
+                    style = MaterialTheme.typography.bodyMedium,
                     color = accents.rain,
-                    modifier = Modifier.width(38.dp)
+                    modifier = Modifier.width(46.dp)
+                )
+                val precipitation = precipitationSums?.getOrNull(i) ?: 0.0
+                Text(
+                    if (precipitation > 0.05) "${format.millimetres(precipitation)} mm" else "",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = accents.rain,
+                    modifier = Modifier.width(66.dp)
+                )
+                val windKmh = windSpeeds?.getOrNull(i) ?: Double.NaN
+                WindArrow(windDirections?.getOrNull(i) ?: Double.NaN, windKmh)
+                Spacer(Modifier.width(3.dp))
+                Text(
+                    if (windKmh.isNaN()) "" else "${windKmh.roundToInt()}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.width(22.dp)
                 )
                 Text(
                     format.temp(low),
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.width(34.dp),
                     textAlign = TextAlign.End
@@ -90,22 +114,38 @@ internal fun DailyOutlook(forecast: RouteForecast) {
                         highColor = accents.forTemperature(high)
                     )
                 }
-                Spacer(Modifier.width(8.dp))
+                Spacer(Modifier.width(4.dp))
                 Text(
                     format.temp(high),
                     style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.width(34.dp)
-                )
-                val precipitation = precipitationSums?.getOrNull(i) ?: 0.0
-                Caption(
-                    if (precipitation > 0.05) "${format.millimetres(precipitation)}mm" else "",
-                    modifier = Modifier.width(48.dp),
+                    modifier = Modifier.width(28.dp),
                     textAlign = TextAlign.End
                 )
             }
+            if (isSaturday(times[i]) && i < times.lastIndex) WeekDivider()
         }
     }
 }
+
+@Composable
+private fun WeekDivider() {
+    val color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+    androidx.compose.foundation.Canvas(
+        Modifier
+            .fillMaxWidth()
+            .padding(vertical = 2.dp)
+            .height(1.dp)
+    ) {
+        drawLine(
+            color, Offset(0f, 0f), Offset(size.width, 0f),
+            strokeWidth = 1.dp.toPx(),
+            pathEffect = PathEffect.dashPathEffect(floatArrayOf(3.dp.toPx(), 4.dp.toPx()))
+        )
+    }
+}
+
+private fun isSaturday(dayMs: Long): Boolean =
+    Instant.ofEpochMilli(dayMs).atZone(ZoneId.systemDefault()).dayOfWeek == DayOfWeek.SATURDAY
 
 @Composable
 private fun TempBar(startFraction: Float, endFraction: Float, lowColor: Color, highColor: Color) {

@@ -81,8 +81,8 @@ object WeatherApi {
     private val timezoneParameter: String
         get() = URLEncoder.encode(ZoneId.systemDefault().id, "UTF-8")
 
-    suspend fun fetch(home: Place, work: Place, useRadar: Boolean): RouteForecast = coroutineScope {
-        val points = Geo.samplePoints(home.toLatLon(), work.toLatLon(), SAMPLE_POINTS)
+    suspend fun fetch(home: Place, work: Place, useRadar: Boolean, pointCount: Int = SAMPLE_POINTS): RouteForecast = coroutineScope {
+        val points = Geo.samplePoints(home.toLatLon(), work.toLatLon(), pointCount)
         val midpoint = points[points.size / 2]
         val distance = Geo.routeKm(home.toLatLon(), work.toLatLon())
 
@@ -227,7 +227,8 @@ object WeatherApi {
     private const val DAILY_VARIABLES =
         "weather_code,temperature_2m_max,temperature_2m_min,apparent_temperature_min," +
             "apparent_temperature_max,precipitation_sum,precipitation_hours," +
-            "precipitation_probability_max,wind_speed_10m_max,sunrise,sunset"
+            "precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max," +
+            "wind_direction_10m_dominant,sunrise,sunset"
 
     private const val CURRENT_VARIABLES =
         "temperature_2m,apparent_temperature,precipitation,weather_code," +
@@ -241,7 +242,7 @@ object WeatherApi {
         val baseUrl = "https://api.open-meteo.com/v1/forecast" +
             "?latitude=${coordinate(midpoint.lat)}&longitude=${coordinate(midpoint.lon)}" +
             "&hourly=$HOURLY_VARIABLES&daily=$DAILY_VARIABLES&current=$CURRENT_VARIABLES" +
-            "&forecast_days=4&timeformat=unixtime&timezone=$timezoneParameter"
+            "&forecast_days=14&timeformat=unixtime&timezone=$timezoneParameter"
 
         // minutely_15 makes some models fail the whole request; fall back to hourly.
         val body = runCatching { Net.getText("$baseUrl&minutely_15=$QUARTER_HOUR_VARIABLES") }
