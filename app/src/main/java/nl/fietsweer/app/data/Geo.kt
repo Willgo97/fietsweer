@@ -1,4 +1,4 @@
-package nl.fietsweer.app.domain
+package nl.fietsweer.app.data
 
 import kotlin.math.PI
 import kotlin.math.abs

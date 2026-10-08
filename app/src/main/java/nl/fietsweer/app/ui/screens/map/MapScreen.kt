@@ -10,9 +10,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import kotlinx.coroutines.launch
+import nl.fietsweer.app.data.Geo
 import nl.fietsweer.app.data.LocalForecast
 import nl.fietsweer.app.data.Settings
-import nl.fietsweer.app.domain.Geo
 import nl.fietsweer.app.ui.components.FillScreen
 import nl.fietsweer.app.ui.components.NoRouteState
 import nl.fietsweer.app.ui.map.MapTheme

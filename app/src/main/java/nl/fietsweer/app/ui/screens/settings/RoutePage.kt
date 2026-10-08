@@ -16,9 +16,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import nl.fietsweer.app.data.Geo
 import nl.fietsweer.app.data.Place
 import nl.fietsweer.app.data.Settings
-import nl.fietsweer.app.domain.Geo
 import nl.fietsweer.app.ui.components.NavigationRow
 import nl.fietsweer.app.ui.components.SectionCard
 import nl.fietsweer.app.ui.components.SoftDivider

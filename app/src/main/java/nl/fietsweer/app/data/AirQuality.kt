@@ -2,8 +2,6 @@ package nl.fietsweer.app.data
 
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import nl.fietsweer.app.domain.Geo
-import nl.fietsweer.app.domain.LatLon
 import org.json.JSONArray
 import kotlin.math.cos
 

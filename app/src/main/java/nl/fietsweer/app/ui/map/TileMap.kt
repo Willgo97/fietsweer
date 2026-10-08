@@ -28,8 +28,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
-import nl.fietsweer.app.domain.Geo
-import nl.fietsweer.app.domain.LatLon
+import nl.fietsweer.app.data.Geo
+import nl.fietsweer.app.data.LatLon
 import nl.fietsweer.app.ui.theme.MapPalette
 import kotlin.math.PI
 import kotlin.math.atan

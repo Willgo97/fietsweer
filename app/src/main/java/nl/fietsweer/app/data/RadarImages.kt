@@ -9,7 +9,6 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import nl.fietsweer.app.domain.LatLon
 import org.json.JSONObject
 import java.time.LocalDateTime
 import java.time.ZoneOffset

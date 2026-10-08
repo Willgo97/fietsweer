@@ -16,8 +16,6 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
-import nl.fietsweer.app.domain.Geo
-import nl.fietsweer.app.domain.LatLon
 import kotlin.coroutines.resume
 
 class LocalWeather(val placeName: String, val point: LatLon, val forecast: RouteForecast)

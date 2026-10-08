@@ -2,8 +2,6 @@ package nl.fietsweer.app.data
 
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
-import nl.fietsweer.app.domain.Geo
-import nl.fietsweer.app.domain.LatLon
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.URLEncoder

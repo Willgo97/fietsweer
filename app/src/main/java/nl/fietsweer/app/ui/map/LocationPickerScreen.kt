@@ -51,9 +51,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import nl.fietsweer.app.data.CenterOfNetherlands
 import nl.fietsweer.app.data.Geocoder
+import nl.fietsweer.app.data.LatLon
 import nl.fietsweer.app.data.Place
 import nl.fietsweer.app.data.Settings
-import nl.fietsweer.app.domain.LatLon
 import nl.fietsweer.app.ui.components.ButtonLabel
 import nl.fietsweer.app.ui.components.SectionLabel
 import nl.fietsweer.app.ui.theme.AppTheme

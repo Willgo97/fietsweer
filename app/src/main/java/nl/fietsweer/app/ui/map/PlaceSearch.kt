@@ -34,9 +34,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import nl.fietsweer.app.data.Geo
+import nl.fietsweer.app.data.LatLon
 import nl.fietsweer.app.data.Place
-import nl.fietsweer.app.domain.Geo
-import nl.fietsweer.app.domain.LatLon
 import nl.fietsweer.app.ui.theme.AppTheme
 
 @Composable

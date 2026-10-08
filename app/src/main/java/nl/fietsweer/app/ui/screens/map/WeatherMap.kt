@@ -78,9 +78,9 @@ import kotlinx.coroutines.delay
 import nl.fietsweer.app.data.AirGrid
 import nl.fietsweer.app.data.AirLayer
 import nl.fietsweer.app.data.AirQuality
+import nl.fietsweer.app.data.Geo
+import nl.fietsweer.app.data.LatLon
 import nl.fietsweer.app.data.RadarImages
-import nl.fietsweer.app.domain.Geo
-import nl.fietsweer.app.domain.LatLon
 import nl.fietsweer.app.domain.Strings
 import nl.fietsweer.app.ui.components.AppSlider
 import nl.fietsweer.app.ui.components.SectionCard

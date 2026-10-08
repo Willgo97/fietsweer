@@ -1,7 +1,5 @@
 package nl.fietsweer.app.data
 
-import nl.fietsweer.app.domain.Geo
-import nl.fietsweer.app.domain.LatLon
 import org.json.JSONObject
 import java.net.URLEncoder
 

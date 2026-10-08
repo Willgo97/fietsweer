@@ -2,8 +2,6 @@ package nl.fietsweer.app.data
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import nl.fietsweer.app.domain.Geo
-import nl.fietsweer.app.domain.LatLon
 import java.util.UUID
 
 @Serializable

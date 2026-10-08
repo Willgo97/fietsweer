@@ -1,5 +1,6 @@
 package nl.fietsweer.app.domain
 
+import nl.fietsweer.app.data.Geo
 import nl.fietsweer.app.data.Leg
 import nl.fietsweer.app.data.RouteForecast
 import nl.fietsweer.app.data.Settings
