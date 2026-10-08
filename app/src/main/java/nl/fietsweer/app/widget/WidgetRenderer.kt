@@ -23,9 +23,13 @@ import nl.fietsweer.app.domain.Commute
 import nl.fietsweer.app.domain.DepartureWindow
 import nl.fietsweer.app.domain.Engine
 import nl.fietsweer.app.domain.Formatter
+import nl.fietsweer.app.domain.HOUR_MS
 import nl.fietsweer.app.domain.Jacket
+import nl.fietsweer.app.domain.SkyLight
 import nl.fietsweer.app.domain.Strings
+import nl.fietsweer.app.domain.SunTimes
 import nl.fietsweer.app.domain.departureWindow
+import nl.fietsweer.app.ui.components.WeatherEffect
 import nl.fietsweer.app.ui.theme.LightAccents
 import nl.fietsweer.app.ui.theme.SystemColors
 import nl.fietsweer.app.widget.WidgetArt.Picture
@@ -72,9 +76,26 @@ object WidgetRenderer {
                 chipLine = AdviceText.chipLine(advice, strings),
                 rides = rides,
                 accent = SystemColors.adviceAccent(advice),
-                jacket = advice.anythingNeeded
+                jacket = advice.anythingNeeded,
+                now = nowFor(forecast, now, strings, format)
             ),
             windows.firstOrNull()
+        )
+    }
+
+    private fun nowFor(forecast: RouteForecast, nowMs: Long, strings: Strings, format: Formatter): WidgetNow? {
+        val current = forecast.current
+        val sun = SunTimes.of(forecast)
+        val temperature = current["temperature_2m"] ?: return null
+        val apparent = current["apparent_temperature"]
+        return WidgetNow(
+            temperature = format.temp(temperature),
+            feelsLike = apparent?.let { "${strings.feelsLike} ${format.temp(it)}" }.orEmpty(),
+            windAndRain = format.windAndRain(current),
+            effect = WeatherEffect.forCurrent(current),
+            sunrises = sun.sunrises.filter { it > nowMs - HOUR_MS },
+            sunsets = sun.sunsets.filter { it > nowMs - HOUR_MS },
+            isDay = sun.isDay
         )
     }
 
@@ -197,6 +218,19 @@ object WidgetRenderer {
         views.setTextViewText(lineId, listOf(ride.rain, ride.temperature).filter { it.isNotBlank() }.joinToString(" · "))
         views.setInt(dotId, "setColorFilter", ride.riskColour)
         views.setInt(dotId, "setImageAlpha", 255)
+    }
+
+    fun nowViews(context: Context, settings: Settings, snapshot: WidgetSnapshot?, widthDp: Int, heightDp: Int): RemoteViews {
+        val strings = Strings.of(settings.language)
+        val now = snapshot?.now
+        val views = RemoteViews(context.packageName, R.layout.widget_now)
+        views.setOnClickPendingIntent(R.id.widget_root, openApp(context))
+        views.setImageViewBitmap(R.id.widget_now_background, WidgetArt.now(context, now?.effect, now?.let { SkyLight.at(System.currentTimeMillis(), it.sun) } ?: SkyLight.DAY, widthDp, heightDp))
+        views.setTextViewText(R.id.widget_now_temperature, now?.temperature ?: "–")
+        views.setTextViewText(R.id.widget_now_label, strings.rightNow.uppercase(strings.locale))
+        views.setTextViewText(R.id.widget_now_feels, now?.feelsLike ?: strings.setupNeededTitle)
+        views.setTextViewText(R.id.widget_now_wind, now?.windAndRain.orEmpty())
+        return views
     }
 
     private fun openApp(context: Context): PendingIntent = MainActivity.openIntent(context, OPEN_FROM_WIDGET)

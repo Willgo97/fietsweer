@@ -12,17 +12,32 @@ import android.graphics.Path
 import android.graphics.RectF
 import android.graphics.Shader
 import androidx.compose.material3.ColorScheme
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asAndroidPath
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.VectorGroup
 import androidx.compose.ui.graphics.vector.VectorPath
 import androidx.compose.ui.graphics.vector.toPath
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.dp
 import nl.fietsweer.app.domain.ChartSeries
 import nl.fietsweer.app.domain.DepartureWindow
 import nl.fietsweer.app.domain.RideAssessment
+import nl.fietsweer.app.domain.SkyLight
+import nl.fietsweer.app.ui.components.Particles
+import nl.fietsweer.app.ui.components.WeatherEffect
 import nl.fietsweer.app.ui.components.charts.rainIntensity
+import nl.fietsweer.app.ui.components.drawWeatherEffect
+import nl.fietsweer.app.ui.components.weatherGradient
 import nl.fietsweer.app.ui.theme.Accents
 import nl.fietsweer.app.ui.theme.BrandDark
 import nl.fietsweer.app.ui.theme.BrandLight
@@ -31,12 +46,18 @@ import nl.fietsweer.app.ui.theme.LightAccents
 import java.io.File
 import kotlin.math.max
 import kotlin.math.roundToInt
+import androidx.compose.ui.graphics.Canvas as DrawCanvas
+import androidx.compose.ui.graphics.Path as ComposePath
 
 // The pictures in the widget, drawn here because a home-screen widget cannot run Compose.
 object WidgetArt {
 
     private const val BADGE_DP = 38
     private const val SPAN_MS = DepartureWindow.VISIBLE_MS
+    private const val NOW_CORNER_DP = 24
+
+    // A home screen cannot animate, so the weather is one frozen moment of the hero card's effect.
+    private const val STILL_FRAME_SECONDS = 3.3f
 
     enum class Picture(val fileName: String) { BADGE("badge"), CHART("chart"), CHART_WIDE("chart_wide") }
 
@@ -64,6 +85,26 @@ object WidgetArt {
         val canvas = Canvas(bitmap)
         canvas.drawCircle(px / 2f, px / 2f, px / 2f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = accent })
         drawIcon(canvas, icon, px / 2f, px / 2f, px * 0.56f)
+        return bitmap
+    }
+
+    // The 'right now' card in miniature, drawn at the widget's own size so corners and colours fit.
+    fun now(context: Context, effect: WeatherEffect?, sky: SkyLight, widthDp: Int, heightDp: Int): Bitmap {
+        val density = context.resources.displayMetrics.density
+        val width = (widthDp * density).roundToInt().coerceAtLeast(1)
+        val height = (heightDp * density).roundToInt().coerceAtLeast(1)
+        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        val (start, end) = palette(context).first.weatherGradient(effect, sky)
+        val size = Size(width.toFloat(), height.toFloat())
+        CanvasDrawScope().draw(Density(density), LayoutDirection.Ltr, DrawCanvas(bitmap.asImageBitmap()), size) {
+            val frame = ComposePath().apply {
+                addRoundRect(RoundRect(0f, 0f, size.width, size.height, CornerRadius(NOW_CORNER_DP.dp.toPx())))
+            }
+            clipPath(frame) {
+                drawRect(Brush.linearGradient(listOf(start, end)))
+                effect?.let { drawWeatherEffect(it, Particles(it), STILL_FRAME_SECONDS, sky) }
+            }
+        }
         return bitmap
     }
 

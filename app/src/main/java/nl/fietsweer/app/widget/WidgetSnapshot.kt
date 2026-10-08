@@ -3,6 +3,8 @@ package nl.fietsweer.app.widget
 import android.content.Context
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import nl.fietsweer.app.domain.SunTimes
+import nl.fietsweer.app.ui.components.WeatherEffect
 
 @Serializable
 data class WidgetRide(
@@ -14,12 +16,26 @@ data class WidgetRide(
 )
 
 @Serializable
+data class WidgetNow(
+    val temperature: String,
+    val feelsLike: String,
+    val windAndRain: String,
+    val effect: WeatherEffect?,
+    val sunrises: List<Long> = emptyList(),
+    val sunsets: List<Long> = emptyList(),
+    val isDay: Boolean = true
+) {
+    val sun: SunTimes get() = SunTimes(sunrises, sunsets, isDay)
+}
+
+@Serializable
 data class WidgetSnapshot(
     val headline: String,
     val chipLine: String,
     val rides: List<WidgetRide>,
     val accent: Int,
-    val jacket: Boolean
+    val jacket: Boolean,
+    val now: WidgetNow? = null
 ) {
     val ridesInline: String get() = rides.joinToString(" · ") { "${it.time} ${it.rain}" }
 }

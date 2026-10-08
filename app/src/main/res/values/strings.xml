@@ -6,4 +6,10 @@
     <string name="widget_preview_ride">Back home · 17:20 · 6%</string>
     <string name="widget_preview_inline">08:00 96% · 17:30 dry</string>
     <string name="widget_preview_chips">Rain jacket · Fleece</string>
+    <string name="now_widget_label">Weather now</string>
+    <string name="now_widget_description">Temperature, feel and wind right now, in the colours of the weather.</string>
+    <string name="widget_now_preview_temperature" translatable="false">13°</string>
+    <string name="widget_now_preview_label">RIGHT NOW</string>
+    <string name="widget_now_preview_feels">feels like 11°</string>
+    <string name="widget_now_preview_wind">Wind 10 km/h W</string>
 </resources>

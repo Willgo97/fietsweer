@@ -34,6 +34,7 @@ import nl.fietsweer.app.ui.components.ButtonLabel
 import nl.fietsweer.app.ui.components.SectionCard
 import nl.fietsweer.app.ui.theme.AppTheme
 import nl.fietsweer.app.widget.JacketWidget
+import nl.fietsweer.app.widget.NowWidget
 import nl.fietsweer.app.widget.WidgetArtwork
 import nl.fietsweer.app.widget.WidgetRenderer
 import nl.fietsweer.app.widget.WidgetSize
@@ -68,6 +69,14 @@ internal fun WidgetPage(settings: Settings, forecast: RouteForecast?, onUpdate: 
             }
             Spacer(Modifier.height(8.dp))
             AddButton(strings.widgetAdd) { pin(context, JacketWidget::class.java) }
+        }
+
+        SectionCard(title = strings.nowWidgetTitle, subtitle = strings.nowWidgetSub) {
+            WidgetPreview(Modifier.fillMaxWidth().height(76.dp)) {
+                WidgetRenderer.nowViews(it, settings, snapshot, widthDp = 340, heightDp = 76)
+            }
+            Spacer(Modifier.height(8.dp))
+            AddButton(strings.nowWidgetAdd) { pin(context, NowWidget::class.java) }
         }
 
         SectionCard(title = strings.widgetBiggerTitle, subtitle = strings.widgetBiggerSub) {

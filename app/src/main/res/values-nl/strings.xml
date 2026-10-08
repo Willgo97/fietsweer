@@ -5,4 +5,9 @@
     <string name="widget_preview_ride">Terugrit · 17:20 · 6%</string>
     <string name="widget_preview_inline">08:00 96% · 17:30 droog</string>
     <string name="widget_preview_chips">Regenjas · Fleece</string>
+    <string name="now_widget_label">Weer nu</string>
+    <string name="now_widget_description">Temperatuur, gevoel en wind van dit moment, in de kleuren van het weer.</string>
+    <string name="widget_now_preview_label">NU</string>
+    <string name="widget_now_preview_feels">voelt als 11°</string>
+    <string name="widget_now_preview_wind">Wind 10 km/u W</string>
 </resources>
