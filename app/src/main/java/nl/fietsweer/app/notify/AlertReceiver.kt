@@ -15,11 +15,14 @@ class AlertReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         val alertId = intent.getStringExtra(EXTRA_ALERT_ID).orEmpty()
-        enqueue(context, alertId)
+        val alert = SettingsStore.get(context).current.alerts.firstOrNull { it.id == alertId }
 
-        SettingsStore.get(context).current.alerts.firstOrNull { it.id == alertId }?.let {
-            AlertScheduler.scheduleNext(context, it)
-        }
+        // A snooze outlives a deleted alert; the test notification's snooze has no alert at all.
+        val snoozeOfDeletedAlert = intent.action == AlertScheduler.ACTION_SNOOZE && alertId.isNotEmpty() && alert == null
+        if (snoozeOfDeletedAlert) return
+
+        enqueue(context, alertId)
+        alert?.let { AlertScheduler.scheduleNext(context, it) }
     }
 
     companion object {

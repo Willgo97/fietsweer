@@ -10,11 +10,13 @@ class SnoozeReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         val alertId = intent.getStringExtra(AlertReceiver.EXTRA_ALERT_ID).orEmpty()
-        NotificationManagerCompat.from(context).cancelAll()
-        AlertScheduler.scheduleOneShot(context, alertId, System.currentTimeMillis() + SNOOZE_MS)
+        val notificationId = intent.getIntExtra(EXTRA_NOTIFICATION_ID, 0)
+        NotificationManagerCompat.from(context).cancel(notificationId)
+        AlertScheduler.scheduleSnooze(context, alertId, System.currentTimeMillis() + SNOOZE_MS)
     }
 
-    private companion object {
-        const val SNOOZE_MS = HOUR_MS
+    companion object {
+        const val EXTRA_NOTIFICATION_ID = "notification_id"
+        private const val SNOOZE_MS = HOUR_MS
     }
 }

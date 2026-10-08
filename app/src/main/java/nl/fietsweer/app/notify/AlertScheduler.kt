@@ -15,6 +15,10 @@ object AlertScheduler {
     private const val TAG = "AlertScheduler"
     private const val SCHEDULED_ALARMS_FILE = "alert_book"
     private const val KEY_SCHEDULED_IDS = "scheduled_ids"
+    private const val ACTION_ALERT = "nl.fietsweer.app.ALERT"
+
+    // A separate action, so rescheduling the regular alarms leaves a pending snooze alone.
+    const val ACTION_SNOOZE = "nl.fietsweer.app.SNOOZE_ALERT"
 
     private fun requestCode(alertId: String): Int = (alertId.hashCode() and 0x0FFFFFFF) or 1
 
@@ -30,14 +34,14 @@ object AlertScheduler {
         val scheduledAlarms = appContext.getSharedPreferences(SCHEDULED_ALARMS_FILE, Context.MODE_PRIVATE)
 
         for (alertId in scheduledAlarms.getStringSet(KEY_SCHEDULED_IDS, emptySet()).orEmpty()) {
-            alarmManager.cancel(pendingIntent(appContext, alertId, PendingIntent.FLAG_NO_CREATE) ?: continue)
+            alarmManager.cancel(pendingIntent(appContext, alertId, ACTION_ALERT, PendingIntent.FLAG_NO_CREATE) ?: continue)
         }
 
         val alerts = SettingsStore.get(appContext).current.alerts
         val scheduledIds = mutableSetOf<String>()
         for (alert in alerts) {
             val triggerMs = alert.nextTriggerMs() ?: continue
-            schedule(appContext, alarmManager, alert.id, triggerMs)
+            schedule(appContext, alarmManager, alert.id, ACTION_ALERT, triggerMs)
             scheduledIds += alert.id
         }
         scheduledAlarms.edit().putStringSet(KEY_SCHEDULED_IDS, scheduledIds).apply()
@@ -48,17 +52,17 @@ object AlertScheduler {
         val appContext = context.applicationContext
         val alarmManager = appContext.getSystemService(AlarmManager::class.java) ?: return
         val triggerMs = alert.nextTriggerMs() ?: return
-        schedule(appContext, alarmManager, alert.id, triggerMs)
+        schedule(appContext, alarmManager, alert.id, ACTION_ALERT, triggerMs)
     }
 
-    fun scheduleOneShot(context: Context, alertId: String, atMs: Long) {
+    fun scheduleSnooze(context: Context, alertId: String, atMs: Long) {
         val appContext = context.applicationContext
         val alarmManager = appContext.getSystemService(AlarmManager::class.java) ?: return
-        schedule(appContext, alarmManager, alertId, atMs)
+        schedule(appContext, alarmManager, alertId, ACTION_SNOOZE, atMs)
     }
 
-    private fun schedule(context: Context, alarmManager: AlarmManager, alertId: String, atMs: Long) {
-        val intent = pendingIntent(context, alertId, PendingIntent.FLAG_UPDATE_CURRENT) ?: return
+    private fun schedule(context: Context, alarmManager: AlarmManager, alertId: String, action: String, atMs: Long) {
+        val intent = pendingIntent(context, alertId, action, PendingIntent.FLAG_UPDATE_CURRENT) ?: return
         try {
             if (canScheduleExact(context)) {
                 alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, atMs, intent)
@@ -70,9 +74,9 @@ object AlertScheduler {
         }
     }
 
-    private fun pendingIntent(context: Context, alertId: String, extraFlags: Int): PendingIntent? {
+    private fun pendingIntent(context: Context, alertId: String, action: String, extraFlags: Int): PendingIntent? {
         val intent = Intent(context, AlertReceiver::class.java)
-            .setAction("nl.fietsweer.app.ALERT")
+            .setAction(action)
             .putExtra(AlertReceiver.EXTRA_ALERT_ID, alertId)
         return PendingIntent.getBroadcast(
             context, requestCode(alertId), intent,

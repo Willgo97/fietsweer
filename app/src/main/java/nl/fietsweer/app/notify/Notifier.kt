@@ -27,7 +27,6 @@ object Notifier {
     private const val PROBLEM_NOTIFICATION_ID = 7500
     private const val OPEN_FROM_ADVICE = 1
     private const val OPEN_FROM_PROBLEM = 3
-    private const val SNOOZE_REQUEST = 2
 
     fun ensureChannel(context: Context, strings: Strings) {
         val notificationManager = context.getSystemService(NotificationManager::class.java) ?: return
@@ -80,17 +79,19 @@ object Notifier {
             .setAutoCancel(true)
             .setContentIntent(MainActivity.openIntent(context, OPEN_FROM_ADVICE))
 
+        val notificationId = ADVICE_NOTIFICATION_BASE_ID + (alert?.id?.hashCode()?.and(0xFF) ?: 0)
         if (advice.definite) {
+            // One snooze per notification: request codes keep them apart, extras alone would not.
             val snooze = PendingIntent.getBroadcast(
-                context, SNOOZE_REQUEST,
+                context, notificationId,
                 Intent(context, SnoozeReceiver::class.java)
-                    .putExtra(AlertReceiver.EXTRA_ALERT_ID, alert?.id ?: ""),
+                    .putExtra(AlertReceiver.EXTRA_ALERT_ID, alert?.id ?: "")
+                    .putExtra(SnoozeReceiver.EXTRA_NOTIFICATION_ID, notificationId),
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
             )
             builder.addAction(0, strings.notifSnooze, snooze)
         }
 
-        val notificationId = ADVICE_NOTIFICATION_BASE_ID + (alert?.id?.hashCode()?.and(0xFF) ?: 0)
         runCatching { NotificationManagerCompat.from(context).notify(notificationId, builder.build()) }
     }
 
