@@ -71,12 +71,12 @@ internal fun DailyOutlook(forecast: RouteForecast) {
                     modifier = Modifier.width(52.dp)
                 )
                 Text(
-                    skyGlyph(WeatherCode.sky((weatherCodes?.getOrNull(i) ?: 0.0).toInt())),
+                    skyGlyph(weatherCodes.valueAt(i)?.let { WeatherCode.sky(it.toInt()) } ?: Sky.UNKNOWN),
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.width(30.dp)
                 )
                 Text(
-                    "${(rainChances?.getOrNull(i) ?: 0.0).roundToInt()}%",
+                    rainChances.valueAt(i)?.let { "${it.roundToInt()}%" }.orEmpty(),
                     style = MaterialTheme.typography.bodyMedium,
                     color = accents.rain,
                     modifier = Modifier.width(46.dp)
@@ -130,6 +130,9 @@ internal fun DailyOutlook(forecast: RouteForecast) {
         }
     }
 }
+
+// Open-Meteo sends null for a day it has no value for, which arrives here as NaN.
+private fun DoubleArray?.valueAt(index: Int): Double? = this?.getOrNull(index)?.takeUnless { it.isNaN() }
 
 @Composable
 private fun WeekDivider() {
