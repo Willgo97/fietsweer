@@ -1,6 +1,7 @@
 package nl.fietsweer.app.data
 
 import android.content.Context
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -57,6 +58,9 @@ object ForecastRepository {
                 } else {
                     mutableState.value = mutableState.value.copy(loading = false, failed = true)
                 }
+            } catch (e: CancellationException) {
+                mutableState.value = mutableState.value.copy(loading = false)
+                throw e
             } catch (e: Throwable) {
                 mutableState.value = mutableState.value.copy(loading = false, failed = true)
             }
