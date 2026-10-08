@@ -42,20 +42,19 @@ object Commute {
     }
 
     private fun alertDays(settings: Settings): Set<Int> =
-        settings.alerts.filter { it.enabled }.flatMap { it.days }.toSet()
-            .filter { it in 1..7 }.toSet().ifEmpty { ALL_DAYS }
+        settings.alerts.filter { it.enabled }.flatMap { it.days }.filter { it in 1..7 }.toSet().ifEmpty { ALL_DAYS }
 
     private val ALL_DAYS = (1..7).toSet()
 
     fun nextRide(
         settings: Settings,
         leg: Leg,
-        nowMs: Long = System.currentTimeMillis(),
+        nowMs: Long,
         days: Set<Int> = ALL_DAYS
     ): PlannedRide {
         val zone = ZoneId.systemDefault()
         val today = ZonedDateTime.ofInstant(Instant.ofEpochMilli(nowMs), zone).toLocalDate()
-        val lateMs = settings.lateMinutesFor(leg) * 60_000L
+        val lateMs = settings.lateMinutesFor(leg) * MINUTE_MS
 
         // Roll the date rather than add 24 h, so DST keeps the clock time.
         var day = today
@@ -66,7 +65,7 @@ object Commute {
         return PlannedRide(
             leg = leg,
             departureMs = departure,
-            earliestMs = departure - settings.earlyMinutesFor(leg) * 60_000L,
+            earliestMs = departure - settings.earlyMinutesFor(leg) * MINUTE_MS,
             latestMs = departure + lateMs
         )
     }

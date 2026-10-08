@@ -4,6 +4,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.time.format.TextStyle
 import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -24,7 +25,7 @@ class Formatter(private val strings: Strings) {
         return when (date) {
             today -> strings.today
             today.plusDays(1) -> strings.tomorrow
-            else -> date.dayOfWeek.getDisplayName(java.time.format.TextStyle.FULL, locale)
+            else -> date.dayOfWeek.getDisplayName(TextStyle.FULL, locale)
         }
     }
 
@@ -33,7 +34,7 @@ class Formatter(private val strings: Strings) {
 
     fun dayShort(ms: Long): String {
         val date = Instant.ofEpochMilli(ms).atZone(zone).toLocalDate()
-        return date.dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, locale)
+        return date.dayOfWeek.getDisplayName(TextStyle.SHORT, locale)
             .replaceFirstChar { it.uppercase(locale) }
     }
 
@@ -83,11 +84,7 @@ class Formatter(private val strings: Strings) {
 
     fun compass(degrees: Double): String {
         if (degrees.isNaN()) return "–"
-        val names = if (strings.locale.language == "nl")
-            listOf("N", "NO", "O", "ZO", "Z", "ZW", "W", "NW")
-        else
-            listOf("N", "NE", "E", "SE", "S", "SW", "W", "NW")
-        return names[((degrees / 45).roundToInt() % 8 + 8) % 8]
+        return strings.compassPoints[((degrees / 45).roundToInt() % 8 + 8) % 8]
     }
 
     fun daysSummary(days: Set<Int>): String = when {
@@ -100,10 +97,7 @@ class Formatter(private val strings: Strings) {
 
     fun relativeShort(ms: Long): String {
         val delta = ms - System.currentTimeMillis()
-        val minutes = (abs(delta) / 60_000L).toInt()
-        return when {
-            minutes < 60 -> strings.minutesShort(minutes)
-            else -> "${dayWord(ms)} ${time(ms)}"
-        }
+        val minutes = (abs(delta) / MINUTE_MS).toInt()
+        return if (minutes < 60) strings.minutesShort(minutes) else dayTime(ms)
     }
 }

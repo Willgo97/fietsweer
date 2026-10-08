@@ -1,5 +1,7 @@
 package nl.fietsweer.app.domain
 
+import nl.fietsweer.app.data.Coverage
+import nl.fietsweer.app.data.RouteForecast
 import nl.fietsweer.app.data.Settings
 import java.time.Instant
 import java.time.LocalDate
@@ -16,13 +18,28 @@ data class Advice(
     val layer: Layer,
     val extras: List<Extra>,
     val rides: List<RideAssessment>,
-    val temperatureKnown: Boolean = true
+    val temperatureKnown: Boolean
 ) {
     val anythingNeeded: Boolean get() = rain != Need.NO || layer != Layer.SHORT_SLEEVES
     val definite: Boolean get() = rain == Need.YES || layer != Layer.SHORT_SLEEVES
 }
 
 object Jacket {
+
+    private const val MAYBE_RAIN_FRACTION = 0.5
+    private const val CERTAIN_RAIN_MM = 1.5
+    private const val GLOVES_BELOW_WINTER_C = 3.0
+    private const val HAT_MAX_C = 0.0
+    private const val HOT_MIN_C = 24.0
+    private const val FROST_MAX_C = 1.5
+    private const val WINDY_GUST_KMH = 55.0
+    private const val WINDY_HEADWIND_KMH = 25.0
+    private const val HEAVY_SHOWER_MM = 3.0
+
+    fun forCommute(forecast: RouteForecast, settings: Settings, coverage: Coverage): Advice {
+        val engine = Engine(forecast, settings)
+        return forNextDay(Commute.plannedRides(settings, coverage).map(engine::assess), settings)
+    }
 
     fun forNextDay(rides: List<RideAssessment>, settings: Settings): Advice {
         val first = rides.minByOrNull { it.departureMs } ?: return forRides(rides, settings)
@@ -32,7 +49,7 @@ object Jacket {
 
     private fun localDate(ms: Long): LocalDate = Instant.ofEpochMilli(ms).atZone(ZoneId.systemDefault()).toLocalDate()
 
-    fun forRides(rides: List<RideAssessment>, settings: Settings): Advice {
+    private fun forRides(rides: List<RideAssessment>, settings: Settings): Advice {
         if (rides.isEmpty())
             return Advice(Need.NO, Layer.SHORT_SLEEVES, emptyList(), rides, false)
 
@@ -42,10 +59,10 @@ object Jacket {
 
         var rain = when {
             maxRiskPercent >= threshold -> Need.YES
-            maxRiskPercent >= threshold * 0.5 -> Need.MAYBE
+            maxRiskPercent >= threshold * MAYBE_RAIN_FRACTION -> Need.MAYBE
             else -> Need.NO
         }
-        if (rain == Need.MAYBE && maxMm >= 1.5) rain = Need.YES
+        if (rain == Need.MAYBE && maxMm >= CERTAIN_RAIN_MM) rain = Need.YES
 
         val withConditions = rides.filter { it.hasConditions }
         val coldest = withConditions.minOfOrNull { it.minBikeFeelC }
@@ -58,16 +75,16 @@ object Jacket {
 
         val extras = buildList {
             if (coldest != null) {
-                if (coldest <= settings.winterCoatBelow - 3.0) add(Extra.GLOVES)
-                if (coldest <= 0.0) add(Extra.HAT)
-                if (coldest >= 24.0) add(Extra.HOT)
+                if (coldest <= settings.winterCoatBelow - GLOVES_BELOW_WINTER_C) add(Extra.GLOVES)
+                if (coldest <= HAT_MAX_C) add(Extra.HAT)
+                if (coldest >= HOT_MIN_C) add(Extra.HOT)
             }
             val minTemp = withConditions.minOfOrNull { it.minTempC }
-            if (minTemp != null && minTemp <= 1.5) add(Extra.FROST)
+            if (minTemp != null && minTemp <= FROST_MAX_C) add(Extra.FROST)
             val gust = withConditions.maxOfOrNull { if (it.gustKmh.isNaN()) 0.0 else it.gustKmh } ?: 0.0
             val headwind = withConditions.maxOfOrNull { if (it.headwindKmh.isNaN()) 0.0 else it.headwindKmh } ?: 0.0
-            if (gust >= 55.0 || headwind >= 25.0) add(Extra.WINDY)
-            if (maxMm >= 3.0) add(Extra.HEAVY_SHOWER)
+            if (gust >= WINDY_GUST_KMH || headwind >= WINDY_HEADWIND_KMH) add(Extra.WINDY)
+            if (maxMm >= HEAVY_SHOWER_MM) add(Extra.HEAVY_SHOWER)
             if (rides.any { it.isNight }) add(Extra.DARK)
         }
 

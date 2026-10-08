@@ -4,8 +4,10 @@ import nl.fietsweer.app.data.Geo
 import nl.fietsweer.app.data.Leg
 import nl.fietsweer.app.data.RouteForecast
 import nl.fietsweer.app.data.Settings
-import java.util.Calendar
+import java.time.Instant
+import java.time.ZoneId
 import kotlin.math.abs
+import kotlin.math.ceil
 import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.pow
@@ -20,18 +22,11 @@ data class RideAssessment(
     val arrivalMs: Long,
     val durationMinutes: Int,
     val stillAirDurationMinutes: Int,
-    val paceKmh: Double,
-    val distanceKm: Double,
 
     val risk: Double,
-    val modelsWetCount: Int,
     val modelCount: Int,
-    val ensembleProbability: Double?,
-    val radarRisk: Double?,
-    val radarMaxMmh: Double,
     val averageMm: Double,
     val maxMm: Double,
-    val agreement: Double,
     val isNight: Boolean,
 
     val hasConditions: Boolean,
@@ -40,29 +35,54 @@ data class RideAssessment(
     val minTempC: Double,
     val windKmh: Double,
     val gustKmh: Double,
-    val windFromDeg: Double,
     val headwindKmh: Double,
     val windRelation: WindRelation
 ) {
     val riskPercent: Int get() = (risk * 100).roundToInt()
 
     val windDelayMinutes: Int get() = durationMinutes - stillAirDurationMinutes
+
+    val slotCentreMs: Long get() = departureMs + Engine.GRID_MS / 2
 }
 
 class Engine(private val forecast: RouteForecast, private val settings: Settings) {
 
     companion object {
         const val GRID_MINUTES = 15
-        const val SAMPLE_STEP_MINUTES = 5
-        const val DRY_RISK = 0.22
-        private const val MIN_HOUR_OVERLAP_MS = 10 * 60_000L
+        const val GRID_MS = GRID_MINUTES * MINUTE_MS
+        private const val SAMPLE_STEP_MINUTES = 5
+        private const val MIN_HOUR_OVERLAP_MS = 10 * MINUTE_MS
+
+        private const val MIN_RIDE_MINUTES = 3
+        private const val MAX_RIDE_MINUTES = 360
+        private const val STANDSTILL_KMH = 0.5
+        private const val STANDSTILL_RIDE_MINUTES = 5
+
+        // The wet threshold is per quarter hour; ensembles are hourly peaks and radar is mm/h.
+        private const val ENSEMBLE_THRESHOLD_FACTOR = 2.0
+        private const val QUARTERS_PER_HOUR = 4.0
+
+        private const val RADAR_MAX_GAP_MS = 10 * MINUTE_MS
+        private const val RADAR_MIN_COVERAGE = 0.6
+        private const val RADAR_WET_FLOOR = 0.6
+
+        private const val RADAR_NEAR_LEAD_MINUTES = 60
+        private const val RADAR_WEIGHT_NEAR = 1.4
+        private const val RADAR_WEIGHT_FAR = 0.9
+        private const val ENSEMBLE_WEIGHT = 0.8
+        private const val MODEL_WEIGHT = 1.0
+
+        private const val HEADWIND_FROM_KMH = 3
+        private const val NIGHT_ENDS_HOUR = 6
+        private const val NIGHT_STARTS_HOUR = 23
 
         fun rideDurationMinutes(distanceKm: Double, speedKmh: Double): Int {
-            if (speedKmh <= 0.5) return 5
-            return (distanceKm / speedKmh * 60.0).roundToInt().coerceIn(3, 360)
+            if (speedKmh <= STANDSTILL_KMH) return STANDSTILL_RIDE_MINUTES
+            return clampDuration(distanceKm / speedKmh * 60.0)
         }
 
-        private fun clampDuration(minutes: Double): Int = minutes.roundToInt().coerceIn(3, 360)
+        private fun clampDuration(minutes: Double): Int =
+            minutes.roundToInt().coerceIn(MIN_RIDE_MINUTES, MAX_RIDE_MINUTES)
 
         // JAG/TI wind chill, undefined below 4.8 km/h.
         private fun windChill(tempC: Double, windKmh: Double): Double {
@@ -70,9 +90,15 @@ class Engine(private val forecast: RouteForecast, private val settings: Settings
             val windFactor = windKmh.pow(0.16)
             return 13.12 + 0.6215 * tempC - 11.37 * windFactor + 0.3965 * tempC * windFactor
         }
+
+        // Head (positive) and cross component of a wind relative to the direction of travel.
+        private fun windAlongRoute(windKmh: Double, windFromDeg: Double, travelBearing: Double): Pair<Double, Double> {
+            val relative = Math.toRadians(Geo.angleDiff(windFromDeg, travelBearing))
+            return windKmh * cos(relative) to windKmh * sin(relative)
+        }
     }
 
-    val stillAirDurationMinutes: Int = rideDurationMinutes(forecast.distanceKm, settings.speedKmh.toDouble())
+    private val stillAirDurationMinutes: Int = rideDurationMinutes(forecast.distanceKm, settings.speedKmh.toDouble())
     private val pointCount = forecast.points.size
 
     private val bearingOutbound = Geo.bearingDeg(forecast.home.toLatLon(), forecast.work.toLatLon())
@@ -121,20 +147,25 @@ class Engine(private val forecast: RouteForecast, private val settings: Settings
         return values[i]
     }
 
+    private fun condition(key: String, timeMs: Long): Double {
+        val quarterHourValue = value(forecast.quarterHourly, forecast.quarterHourTimes, key, timeMs)
+        if (!quarterHourValue.isNaN()) return quarterHourValue
+        return value(forecast.hourly, forecast.hourlyTimes, key, timeMs)
+    }
+
     private fun windOver(departureMs: Long, minutes: Int, bearing: Double): Pair<Double, Double>? {
         var headSum = 0.0
         var crossSum = 0.0
         var count = 0
         var minute = 0
         while (minute <= minutes) {
-            val timeMs = departureMs + minute * 60_000L
+            val timeMs = departureMs + minute * MINUTE_MS
             val speed = condition("wind_speed_10m", timeMs)
             val from = condition("wind_direction_10m", timeMs)
             if (!speed.isNaN() && !from.isNaN()) {
-                val atBike = speed * Bike.WIND_AT_BIKE
-                val relative = Math.toRadians(Geo.angleDiff(from, bearing))
-                headSum += atBike * cos(relative)
-                crossSum += atBike * sin(relative)
+                val (head, cross) = windAlongRoute(speed * Bike.WIND_AT_BIKE, from, bearing)
+                headSum += head
+                crossSum += cross
                 count++
             }
             minute += SAMPLE_STEP_MINUTES
@@ -161,8 +192,51 @@ class Engine(private val forecast: RouteForecast, private val settings: Settings
         val bearing = if (leg == Leg.OUTBOUND) bearingOutbound else bearingReturn
         val durationMinutes = durationFor(departureMs, bearing)
         val samples = samples(leg, durationMinutes)
-        val arrival = departureMs + durationMinutes * 60_000L
+        val arrivalMs = departureMs + durationMinutes * MINUTE_MS
 
+        val models = modelVote(samples, departureMs)
+        val risk = blendedRisk(
+            departureMs = departureMs,
+            modelVote = models,
+            ensembleProbability = ensembleProbability(departureMs, arrivalMs),
+            radarRisk = radarRisk(samples, departureMs)
+        )
+        val paceKmh = Bike.paceFor(forecast.distanceKm, durationMinutes.toDouble())
+        val conditions = conditions(samples, departureMs, bearing, paceKmh)
+        val departureHour = Instant.ofEpochMilli(departureMs).atZone(ZoneId.systemDefault()).hour
+
+        return RideAssessment(
+            leg = leg,
+            departureMs = departureMs,
+            arrivalMs = arrivalMs,
+            durationMinutes = durationMinutes,
+            stillAirDurationMinutes = stillAirDurationMinutes,
+            risk = risk,
+            modelCount = models.modelCount,
+            averageMm = models.averageMm,
+            maxMm = models.maxMm,
+            isNight = departureHour < NIGHT_ENDS_HOUR || departureHour >= NIGHT_STARTS_HOUR,
+            hasConditions = conditions != null,
+            bikeFeelC = conditions?.bikeFeelC ?: Double.NaN,
+            minBikeFeelC = conditions?.minBikeFeelC ?: Double.NaN,
+            minTempC = conditions?.minTempC ?: Double.NaN,
+            windKmh = conditions?.windKmh ?: Double.NaN,
+            gustKmh = conditions?.gustKmh ?: Double.NaN,
+            headwindKmh = conditions?.headwindKmh ?: Double.NaN,
+            windRelation = when {
+                conditions == null -> WindRelation.CROSS
+                conditions.headwindKmh > HEADWIND_FROM_KMH -> WindRelation.HEAD
+                conditions.headwindKmh < -HEADWIND_FROM_KMH -> WindRelation.TAIL
+                else -> WindRelation.CROSS
+            }
+        )
+    }
+
+    private class ModelVote(val modelCount: Int, val wetCount: Int, val averageMm: Double, val maxMm: Double) {
+        val wetFraction: Double get() = if (modelCount == 0) 0.0 else wetCount.toDouble() / modelCount
+    }
+
+    private fun modelVote(samples: List<Sample>, departureMs: Long): ModelVote {
         var modelCount = 0
         var wetCount = 0
         var mmSum = 0.0
@@ -171,7 +245,7 @@ class Engine(private val forecast: RouteForecast, private val settings: Settings
             var peak = 0.0
             var anyValue = false
             for (sample in samples) {
-                val timeMs = departureMs + sample.minute * 60_000L
+                val timeMs = departureMs + sample.minute * MINUTE_MS
                 val i = intervalEndingAfter(forecast.modelTimes, timeMs)
                 if (i < 0) continue
                 val values = model.precipitationPerPoint[sample.pointIndex]
@@ -181,158 +255,115 @@ class Engine(private val forecast: RouteForecast, private val settings: Settings
             }
             // Short-range models run out after a day or two; no data is not a dry vote.
             if (!anyValue) continue
-            val wet = peak >= settings.wetThreshold
             modelCount++
-            if (wet) wetCount++
+            if (peak >= settings.wetThreshold) wetCount++
             mmSum += peak
             if (peak > mmMax) mmMax = peak
         }
-        val modelsWet = if (modelCount == 0) 0.0 else wetCount.toDouble() / modelCount
+        return ModelVote(modelCount, wetCount, if (modelCount == 0) 0.0 else mmSum / modelCount, mmMax)
+    }
 
-        var ensembleProbability: Double? = null
-        if (forecast.ensembleMembers.isNotEmpty() && forecast.ensembleTimes.isNotEmpty()) {
-            val hoursDuringRide = ArrayList<Int>()
-            for (i in forecast.ensembleTimes.indices) {
-                val hourEnd = forecast.ensembleTimes[i]
-                val overlapMs = minOf(hourEnd, arrival) - maxOf(hourEnd - 3_600_000L, departureMs)
-                if (overlapMs >= MIN_HOUR_OVERLAP_MS) hoursDuringRide += i
-            }
-            if (hoursDuringRide.isNotEmpty()) {
-                var wetMembers = 0
-                var membersWithData = 0
-                for (member in forecast.ensembleMembers) {
-                    var peak = 0.0
-                    var anyValue = false
-                    for (i in hoursDuringRide) {
-                        if (i >= member.size) continue
-                        val value = member[i]
-                        if (!value.isNaN()) { anyValue = true; if (value > peak) peak = value }
-                    }
-                    if (!anyValue) continue
-                    membersWithData++
-                    if (peak >= settings.wetThreshold * 2) wetMembers++ // hourly peak vs per-quarter threshold
-                }
-                if (membersWithData > 0) ensembleProbability = wetMembers.toDouble() / membersWithData
-            }
+    private fun ensembleProbability(departureMs: Long, arrivalMs: Long): Double? {
+        if (forecast.ensembleMembers.isEmpty() || forecast.ensembleTimes.isEmpty()) return null
+        val hoursDuringRide = forecast.ensembleTimes.indices.filter { i ->
+            val hourEnd = forecast.ensembleTimes[i]
+            minOf(hourEnd, arrivalMs) - maxOf(hourEnd - HOUR_MS, departureMs) >= MIN_HOUR_OVERLAP_MS
         }
+        if (hoursDuringRide.isEmpty()) return null
 
-        var radarRisk: Double? = null
-        var radarMax = 0.0
-        if (forecast.radar.isNotEmpty()) {
-            var wetSamples = 0
-            var coveredSamples = 0
-            for (sample in samples) {
-                val timeMs = departureMs + sample.minute * 60_000L
-                var nearest: Double? = null
-                var nearestDelta = Long.MAX_VALUE
-                for (radarSample in forecast.radar) {
-                    val delta = abs(radarSample.timeMs - timeMs)
-                    if (delta < nearestDelta) { nearestDelta = delta; nearest = radarSample.mmPerHour }
-                }
-                if (nearest != null && nearestDelta <= 600_000L) {
-                    coveredSamples++
-                    if (nearest > radarMax) radarMax = nearest
-                    if (nearest / 4.0 >= settings.wetThreshold) wetSamples++ // mm/h vs per-quarter threshold
-                }
+        var wetMembers = 0
+        var membersWithData = 0
+        for (member in forecast.ensembleMembers) {
+            var peak = 0.0
+            var anyValue = false
+            for (i in hoursDuringRide) {
+                if (i >= member.size) continue
+                val value = member[i]
+                if (!value.isNaN()) { anyValue = true; if (value > peak) peak = value }
             }
-            if (coveredSamples >= Math.ceil(samples.size * 0.6).toInt()) {
-                radarRisk = if (wetSamples > 0) {
-                    minOf(1.0, 0.6 + 0.4 * (wetSamples.toDouble() / coveredSamples))
-                } else 0.0
-            }
+            if (!anyValue) continue
+            membersWithData++
+            if (peak >= settings.wetThreshold * ENSEMBLE_THRESHOLD_FACTOR) wetMembers++
         }
+        return if (membersWithData > 0) wetMembers.toDouble() / membersWithData else null
+    }
 
+    private fun radarRisk(samples: List<Sample>, departureMs: Long): Double? {
+        if (forecast.radar.isEmpty()) return null
+        var wetSamples = 0
+        var coveredSamples = 0
+        for (sample in samples) {
+            val timeMs = departureMs + sample.minute * MINUTE_MS
+            val nearest = forecast.radar.minByOrNull { abs(it.timeMs - timeMs) } ?: continue
+            if (abs(nearest.timeMs - timeMs) > RADAR_MAX_GAP_MS) continue
+            coveredSamples++
+            if (nearest.mmPerHour / QUARTERS_PER_HOUR >= settings.wetThreshold) wetSamples++
+        }
+        if (coveredSamples < ceil(samples.size * RADAR_MIN_COVERAGE).toInt()) return null
+        if (wetSamples == 0) return 0.0
+        return minOf(1.0, RADAR_WET_FLOOR + (1 - RADAR_WET_FLOOR) * (wetSamples.toDouble() / coveredSamples))
+    }
+
+    private fun blendedRisk(departureMs: Long, modelVote: ModelVote, ensembleProbability: Double?, radarRisk: Double?): Double {
         val leadMinutes = (departureMs - System.currentTimeMillis()) / 60_000.0
         var weighted = 0.0
         var weightSum = 0.0
         radarRisk?.let {
-            val radarWeight = if (leadMinutes <= 60) 1.4 else 0.9
+            val radarWeight = if (leadMinutes <= RADAR_NEAR_LEAD_MINUTES) RADAR_WEIGHT_NEAR else RADAR_WEIGHT_FAR
             weighted += it * radarWeight
             weightSum += radarWeight
         }
-        ensembleProbability?.let { weighted += it * 0.8; weightSum += 0.8 }
-        if (modelCount > 0) { weighted += modelsWet * 1.0; weightSum += 1.0 }
-        val risk = if (weightSum == 0.0) modelsWet else weighted / weightSum
+        ensembleProbability?.let { weighted += it * ENSEMBLE_WEIGHT; weightSum += ENSEMBLE_WEIGHT }
+        if (modelVote.modelCount > 0) { weighted += modelVote.wetFraction * MODEL_WEIGHT; weightSum += MODEL_WEIGHT }
+        return if (weightSum == 0.0) modelVote.wetFraction else weighted / weightSum
+    }
 
-        var wind = Double.NaN
-        var gust = Double.NaN
-        var windDirection = Double.NaN
+    private class Conditions(
+        val bikeFeelC: Double,
+        val minBikeFeelC: Double,
+        val minTempC: Double,
+        val windKmh: Double,
+        val gustKmh: Double,
+        val headwindKmh: Double
+    )
+
+    private fun conditions(samples: List<Sample>, departureMs: Long, bearing: Double, paceKmh: Double): Conditions? {
+        var firstWind = Double.NaN
+        var firstGust = Double.NaN
         var minFeel = Double.MAX_VALUE
         var minTemp = Double.MAX_VALUE
         var feelSum = 0.0
-        var feelCount = 0
         var headSum = 0.0
+        var count = 0
 
         for (sample in samples) {
-            val timeMs = departureMs + sample.minute * 60_000L
-            val sampleTemp = condition("temperature_2m", timeMs)
-            val sampleApparent = condition("apparent_temperature", timeMs)
-            val sampleWind = condition("wind_speed_10m", timeMs)
-            val sampleDirection = condition("wind_direction_10m", timeMs)
-            val sampleGust = condition("wind_gusts_10m", timeMs)
-            if (sampleTemp.isNaN() || sampleApparent.isNaN() || sampleWind.isNaN() || sampleDirection.isNaN()) continue
-            val feel = bikeFeel(
-                sampleTemp, sampleApparent, sampleWind, sampleDirection, bearing,
-                Bike.paceFor(forecast.distanceKm, durationMinutes.toDouble())
-            )
+            val timeMs = departureMs + sample.minute * MINUTE_MS
+            val temperature = condition("temperature_2m", timeMs)
+            val apparent = condition("apparent_temperature", timeMs)
+            val wind = condition("wind_speed_10m", timeMs)
+            val windFrom = condition("wind_direction_10m", timeMs)
+            val gust = condition("wind_gusts_10m", timeMs)
+            if (temperature.isNaN() || apparent.isNaN() || wind.isNaN() || windFrom.isNaN()) continue
+            val feel = bikeFeel(temperature, apparent, wind, windFrom, bearing, paceKmh)
             if (feel < minFeel) minFeel = feel
-            if (sampleTemp < minTemp) minTemp = sampleTemp
+            if (temperature < minTemp) minTemp = temperature
             feelSum += feel
-            feelCount++
-            headSum += headwindComponent(sampleWind, sampleDirection, bearing)
-            if (wind.isNaN()) {
-                wind = sampleWind
-                windDirection = sampleDirection
-                gust = sampleGust
+            headSum += windAlongRoute(wind, windFrom, bearing).first
+            if (count == 0) {
+                firstWind = wind
+                firstGust = gust
             }
+            count++
         }
-
-        val hasConditions = feelCount > 0
-        val bikeFeel = if (hasConditions) feelSum / feelCount else Double.NaN
-        val headwind = if (hasConditions) headSum / feelCount else Double.NaN
-        val relation = when {
-            !hasConditions -> WindRelation.CROSS
-            headwind > 3 -> WindRelation.HEAD
-            headwind < -3 -> WindRelation.TAIL
-            else -> WindRelation.CROSS
-        }
-
-        val departureHour = Calendar.getInstance().apply { timeInMillis = departureMs }.get(Calendar.HOUR_OF_DAY)
-
-        return RideAssessment(
-            leg = leg,
-            departureMs = departureMs,
-            arrivalMs = arrival,
-            durationMinutes = durationMinutes,
-            stillAirDurationMinutes = stillAirDurationMinutes,
-            paceKmh = Bike.paceFor(forecast.distanceKm, durationMinutes.toDouble()),
-            distanceKm = forecast.distanceKm,
-            risk = risk,
-            modelsWetCount = wetCount,
-            modelCount = modelCount,
-            ensembleProbability = ensembleProbability,
-            radarRisk = radarRisk,
-            radarMaxMmh = radarMax,
-            averageMm = if (modelCount == 0) 0.0 else mmSum / modelCount,
-            maxMm = mmMax,
-            agreement = abs(2 * modelsWet - 1),
-            isNight = departureHour < 6 || departureHour >= 23,
-            hasConditions = hasConditions,
-            bikeFeelC = bikeFeel,
-            minBikeFeelC = if (hasConditions) minFeel else Double.NaN,
-            minTempC = if (hasConditions) minTemp else Double.NaN,
-            windKmh = wind,
-            gustKmh = gust,
-            windFromDeg = windDirection,
-            headwindKmh = headwind,
-            windRelation = relation
+        if (count == 0) return null
+        return Conditions(
+            bikeFeelC = feelSum / count,
+            minBikeFeelC = minFeel,
+            minTempC = minTemp,
+            windKmh = firstWind,
+            gustKmh = firstGust,
+            headwindKmh = headSum / count
         )
-    }
-
-    private fun condition(key: String, timeMs: Long): Double {
-        val quarterHourValue = value(forecast.quarterHourly, forecast.quarterHourTimes, key, timeMs)
-        if (!quarterHourValue.isNaN()) return quarterHourValue
-        return value(forecast.hourly, forecast.hourlyTimes, key, timeMs)
     }
 
     private fun bikeFeel(
@@ -343,25 +374,15 @@ class Engine(private val forecast: RouteForecast, private val settings: Settings
         travelBearing: Double,
         bikeKmh: Double
     ): Double {
-        val atBike = wind10Kmh * Bike.WIND_AT_BIKE
-        val relative = Math.toRadians(Geo.angleDiff(windFromDeg, travelBearing))
-        val head = atBike * cos(relative)
-        val cross = atBike * sin(relative)
+        val (head, cross) = windAlongRoute(wind10Kmh * Bike.WIND_AT_BIKE, windFromDeg, travelBearing)
         val relativeWind = hypot(bikeKmh + head, cross)
         val extraChill = (windChill(tempC, wind10Kmh) - windChill(tempC, relativeWind)).coerceAtLeast(0.0)
         return apparentC - extraChill
     }
 
-    // Positive = headwind km/h, negative = tailwind.
-    private fun headwindComponent(wind10Kmh: Double, windFromDeg: Double, travelBearing: Double): Double {
-        val relative = Math.toRadians(Geo.angleDiff(windFromDeg, travelBearing))
-        return wind10Kmh * cos(relative)
-    }
-
-
     fun scanWindow(leg: Leg, fromMs: Long, untilMs: Long): List<RideAssessment> {
         if (!forecast.hasModels || untilMs < fromMs) return emptyList()
-        val gridStepsNeeded = Math.ceil(stillAirDurationMinutes * 2.0 / GRID_MINUTES).toInt() + 1
+        val gridStepsNeeded = ceil(stillAirDurationMinutes * 2.0 / GRID_MINUTES).toInt() + 1
         val lastStart = forecast.modelTimes.size - gridStepsNeeded
         val slots = ArrayList<RideAssessment>()
         for (i in 0 until lastStart) {

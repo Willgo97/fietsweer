@@ -40,10 +40,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import nl.fietsweer.app.domain.Advice
+import nl.fietsweer.app.domain.AdviceChip
 import nl.fietsweer.app.domain.AdviceText
+import nl.fietsweer.app.domain.ChipKind
 import nl.fietsweer.app.domain.Layer
 import nl.fietsweer.app.domain.Need
-import nl.fietsweer.app.domain.Strings
 import nl.fietsweer.app.ui.components.ChipFlow
 import nl.fietsweer.app.ui.components.SectionLabel
 import nl.fietsweer.app.ui.theme.AppTheme
@@ -126,9 +127,8 @@ internal fun HeroCard(advice: Advice, current: Map<String, Double>) {
 }
 
 @Composable
-private fun HeroChips(chips: List<Pair<String, Boolean>>) {
-    val strings = AppTheme.strings
-    chips.forEach { (label, strong) -> HeroChip(label, strong, iconFor(label, strings)) }
+private fun HeroChips(chips: List<AdviceChip>) {
+    chips.forEach { HeroChip(it.label, it.strong, iconFor(it.kind)) }
 }
 
 @Composable
@@ -156,14 +156,13 @@ private fun HeroChip(label: String, strong: Boolean, icon: ImageVector?) {
     }
 }
 
-@Composable
-private fun iconFor(label: String, strings: Strings): ImageVector? = when (label) {
-    strings.chipRainJacket, strings.chipHeavy -> Icons.Rounded.Umbrella
-    strings.chipVest, strings.chipWinter, strings.chipGloves, strings.chipHat -> Icons.Rounded.Checkroom
-    strings.chipFrost -> Icons.Rounded.AcUnit
-    strings.chipWindy -> Icons.Rounded.Air
-    strings.chipHot -> Icons.Rounded.WaterDrop
-    else -> null
+private fun iconFor(kind: ChipKind): ImageVector? = when (kind) {
+    ChipKind.RAIN_JACKET, ChipKind.HEAVY_SHOWER -> Icons.Rounded.Umbrella
+    ChipKind.VEST, ChipKind.WINTER, ChipKind.GLOVES, ChipKind.HAT -> Icons.Rounded.Checkroom
+    ChipKind.FROST -> Icons.Rounded.AcUnit
+    ChipKind.WINDY -> Icons.Rounded.Air
+    ChipKind.HOT -> Icons.Rounded.WaterDrop
+    ChipKind.DARK -> null
 }
 
 private fun hasCurrentConditions(current: Map<String, Double>): Boolean =

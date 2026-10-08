@@ -2,13 +2,13 @@ package nl.fietsweer.app.domain
 
 import nl.fietsweer.app.data.AccentColor
 import nl.fietsweer.app.data.Language
+import nl.fietsweer.app.data.ThemeMode
 import java.util.Locale
 
 open class Strings {
 
     open val locale: Locale = Locale.ENGLISH
 
-    open val appName = "Fietsweer"
     open val tagline = "Which jacket do you need today?"
     open val back = "Back"
     open val recentre = "Back to departure time"
@@ -17,13 +17,11 @@ open class Strings {
     open val cancel = "Cancel"
     open val save = "Save"
     open val delete = "Delete"
-    open val edit = "Edit"
     open val add = "Add"
     open val retry = "Try again"
     open val close = "Close"
     open val home = "Home"
     open val work = "Work"
-    open val loading = "Loading…"
 
     open val tabToday = "Today"
     open val tabForecast = "Forecast"
@@ -108,7 +106,6 @@ open class Strings {
     open val headwind = "headwind"
     open val tailwind = "tailwind"
     open val crosswind = "crosswind"
-    open val arrival = "Arrival"
     open val updating = "Updating…"
     open val staleNotice = { time: String -> "Could not update \u2014 this is the forecast from $time" }
     open val updateFailedTitle = "Could not reach the weather service"
@@ -118,9 +115,6 @@ open class Strings {
     open val setupNeededTitle = "Set your route first"
     open val setupNeededBody = "Pick a home and a work location to get started."
 
-    open val verdict = "Verdict"
-    open val agreement = "Agreement"
-    open val combined = "Combined (incl. radar)"
 
     open val riskDry = "Dry"
     open val riskAlmostDry = "Almost certainly dry"
@@ -196,6 +190,11 @@ open class Strings {
     open val themeSystem = "System"
     open val themeLight = "Light"
     open val themeDark = "Dark"
+    fun themeName(mode: ThemeMode): String = when (mode) {
+        ThemeMode.SYSTEM -> themeSystem
+        ThemeMode.LIGHT -> themeLight
+        ThemeMode.DARK -> themeDark
+    }
     open val accentColour = "Accent colour"
     open fun accentName(accent: AccentColor): String = when (accent) {
         AccentColor.BRAND -> "Fietsweer"
@@ -241,6 +240,7 @@ open class Strings {
     open val tomorrow = "tomorrow"
     open val dayNamesShort = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
     open val dayLettersShort = listOf("M", "T", "W", "T", "F", "S", "S")
+    open val compassPoints = listOf("N", "NE", "E", "SE", "S", "SW", "W", "NW")
 
     companion object {
         fun of(language: Language): Strings = when (language) {
@@ -264,13 +264,11 @@ object DutchStrings : Strings() {
     override val cancel = "Annuleren"
     override val save = "Bewaren"
     override val delete = "Verwijderen"
-    override val edit = "Aanpassen"
     override val add = "Toevoegen"
     override val retry = "Opnieuw"
     override val close = "Sluiten"
     override val home = "Thuis"
     override val work = "Werk"
-    override val loading = "Bezig…"
 
     override val tabToday = "Vandaag"
     override val tabForecast = "Verwachting"
@@ -354,7 +352,6 @@ object DutchStrings : Strings() {
     override val headwind = "tegenwind"
     override val tailwind = "meewind"
     override val crosswind = "zijwind"
-    override val arrival = "Aankomst"
     override val updating = "Bijwerken…"
     override val staleNotice = { time: String -> "Kon niet bijwerken \u2014 dit is de verwachting van $time" }
     override val updateFailedTitle = "Geen verbinding met de weerdienst"
@@ -364,9 +361,6 @@ object DutchStrings : Strings() {
     override val setupNeededTitle = "Stel eerst je route in"
     override val setupNeededBody = "Kies een thuis- en werklocatie om te beginnen."
 
-    override val verdict = "Eindoordeel"
-    override val agreement = "Eensgezindheid"
-    override val combined = "Samen (incl. radar)"
 
     override val riskDry = "Droog"
     override val riskAlmostDry = "Vrijwel zeker droog"
@@ -472,17 +466,16 @@ object DutchStrings : Strings() {
 
     override val notifChannelName = "Fietsadvies"
     override val notifChannelBody = "Zegt welke jas mee moet voordat je vertrekt."
-    override val notifLegLine = { name: String, time: String, body: String -> "$name $time — $body" }
     override val notifDry = "droog"
     override val notifRainPct = { percent: Int -> "$percent% kans" }
     override val notifSnooze = "Over een uur nog eens"
     override val notifNoData = "Kon de verwachting niet ophalen"
 
     override val speedUnit = "km/u"
-    override val minutesShort = { minutes: Int -> "$minutes min" }
     override val hoursShort = { hours: String -> "$hours uur" }
     override val today = "vandaag"
     override val tomorrow = "morgen"
     override val dayNamesShort = listOf("ma", "di", "wo", "do", "vr", "za", "zo")
     override val dayLettersShort = listOf("M", "D", "W", "D", "V", "Z", "Z")
+    override val compassPoints = listOf("N", "NO", "O", "ZO", "Z", "ZW", "W", "NW")
 }

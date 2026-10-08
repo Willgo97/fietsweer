@@ -7,12 +7,12 @@ object Timeline {
 
     const val STEP_MINUTES = 5
     private const val RADAR_BLEND_MINUTES = 30
-    private const val MINUTE_MS = 60_000L
+
+    const val STEP_MS = STEP_MINUTES * MINUTE_MS
 
     fun times(startMs: Long, endMs: Long): LongArray {
-        val stepMs = STEP_MINUTES * MINUTE_MS
-        val count = ((endMs - startMs) / stepMs).toInt() + 1
-        return LongArray(maxOf(count, 0)) { startMs + it * stepMs }
+        val count = ((endMs - startMs) / STEP_MS).toInt() + 1
+        return LongArray(maxOf(count, 0)) { startMs + it * STEP_MS }
     }
 
     // mm/h along the route: quarter-hour models smoothed to 5 minutes, handing over to radar
@@ -23,6 +23,8 @@ object Timeline {
         val radarStartMs = radar.firstOrNull()?.timeMs
         val radarEndMs = radar.lastOrNull()?.timeMs
         val blendMs = RADAR_BLEND_MINUTES * MINUTE_MS
+        val radarTimes = LongArray(radar.size) { radar[it].timeMs }
+        val radarRates = DoubleArray(radar.size) { radar[it].mmPerHour }
 
         return DoubleArray(times.size) { i ->
             val timeMs = times[i]
@@ -30,11 +32,7 @@ object Timeline {
             if (radarStartMs == null || radarEndMs == null || timeMs < radarStartMs || timeMs > radarEndMs) {
                 return@DoubleArray modelRate
             }
-            val radarRate = interpolateLinear(
-                LongArray(radar.size) { radar[it].timeMs },
-                DoubleArray(radar.size) { radar[it].mmPerHour },
-                timeMs
-            )
+            val radarRate = interpolateLinear(radarTimes, radarRates, timeMs)
             val radarWeight = ((radarEndMs - timeMs).toDouble() / blendMs).coerceIn(0.0, 1.0)
             radarWeight * radarRate + (1 - radarWeight) * modelRate
         }
@@ -50,12 +48,27 @@ object Timeline {
         }
     }
 
+    // Open-Meteo sends sunrise and sunset as unix seconds.
+    fun nights(forecast: RouteForecast, startMs: Long, endMs: Long): List<Pair<Long, Long>> {
+        val sunrises = forecast.daily["sunrise"]?.map { (it * 1000).toLong() }.orEmpty()
+        val sunsets = forecast.daily["sunset"]?.map { (it * 1000).toLong() }.orEmpty()
+        val edges = (sunsets.map { it to true } + sunrises.map { it to false }).sortedBy { it.first }
+        val nights = ArrayList<Pair<Long, Long>>()
+        var nightStart: Long? = if (edges.firstOrNull()?.second == false) startMs else null
+        for ((timeMs, isSunset) in edges) {
+            if (isSunset) nightStart = timeMs
+            else nightStart?.let { nights += it to timeMs; nightStart = null }
+        }
+        nightStart?.let { nights += it to endMs }
+        return nights.filter { it.second > startMs && it.first < endMs }
+    }
+
     // Each model value is the sum over the preceding interval, so it is centred half a step back.
     private fun modelRainCurve(forecast: RouteForecast): ((Double) -> Double)? {
         val times = forecast.modelTimes
         if (times.size < 2 || forecast.models.isEmpty()) return null
         val stepMs = times[1] - times[0]
-        val perHour = 3_600_000.0 / stepMs
+        val perHour = HOUR_MS.toDouble() / stepMs
         val centres = DoubleArray(times.size) { times[it] - stepMs / 2.0 }
         val rates = DoubleArray(times.size) { i ->
             var sum = 0.0
