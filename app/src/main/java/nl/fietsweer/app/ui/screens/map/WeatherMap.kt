@@ -93,6 +93,7 @@ internal fun WeatherMap(centre: LatLon, here: LatLon?, home: LatLon, work: LatLo
     val workIcon = rememberVectorPainter(Icons.Rounded.Work)
     var layer by rememberSaveable { mutableStateOf(MapLayer.RAIN) }
     val radar by RadarAnimation.state.collectAsState()
+    val radarUnavailable by RadarAnimation.unavailable.collectAsState()
     var gridFrames by remember { mutableStateOf<List<MapFrame>>(emptyList()) }
     var position by remember { mutableFloatStateOf(0f) }
     var playing by remember { mutableStateOf(true) }
@@ -173,7 +174,7 @@ internal fun WeatherMap(centre: LatLon, here: LatLon?, home: LatLon, work: LatLo
                 modifier = Modifier.align(Alignment.BottomEnd).padding(end = 10.dp, bottom = 74.dp)
             )
 
-            if (layer == MapLayer.RAIN && radar == null) {
+            if (layer == MapLayer.RAIN && radar == null && !radarUnavailable) {
                 CircularProgressIndicator(
                     strokeWidth = 2.5.dp,
                     modifier = Modifier.align(Alignment.TopStart).padding(16.dp).size(22.dp)

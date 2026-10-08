@@ -20,10 +20,16 @@ object RadarAnimation {
     private val mutableState = MutableStateFlow<PreparedRadar?>(null)
     val state: StateFlow<PreparedRadar?> = mutableState.asStateFlow()
 
+    // Set when the last download brought nothing, so the map stops waiting for frames.
+    private val mutableUnavailable = MutableStateFlow(false)
+    val unavailable: StateFlow<Boolean> = mutableUnavailable.asStateFlow()
+
     private val lock = Mutex()
 
     suspend fun prepare() = lock.withLock {
+        mutableUnavailable.value = false
         val raw = RadarImages.frames()
+        mutableUnavailable.value = raw.size < 2
         if (raw.size < 2) return@withLock
         val times = raw.map { it.timeMs }
         if (mutableState.value?.times == times) return@withLock
