@@ -31,6 +31,22 @@ class JacketWidget : AppWidgetProvider() {
     }
 
     override fun onDisabled(context: Context) {
-        WidgetStore.clear(context)
+        WidgetUpdater.forgetIfUnused(context)
+    }
+}
+
+class BadgeWidget : AppWidgetProvider() {
+
+    override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
+        WidgetUpdater.redraw(context)
+        WidgetUpdater.requestRefresh(context)
+    }
+
+    override fun onEnabled(context: Context) {
+        WidgetUpdater.requestRefresh(context, force = true)
+    }
+
+    override fun onDisabled(context: Context) {
+        WidgetUpdater.forgetIfUnused(context)
     }
 }

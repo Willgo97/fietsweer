@@ -1,47 +1,61 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- One-row variant, used when the widget is resized down to a slim bar. -->
+<!-- Chart: the advice and a small departure chart of the next ride. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/widget_compact_root"
+    android:id="@+id/widget_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/widget_bg"
     android:orientation="horizontal"
     android:gravity="center_vertical"
-    android:padding="10dp">
+    android:paddingStart="12dp"
+    android:paddingEnd="12dp"
+    android:paddingTop="8dp"
+    android:paddingBottom="8dp">
 
     <ImageView
-        android:id="@+id/widget_compact_accent"
-        android:layout_width="5dp"
-        android:layout_height="match_parent"
-        android:layout_marginEnd="10dp"
-        android:src="@drawable/widget_accent"
-        android:scaleType="fitXY"
+        android:id="@+id/widget_badge"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:scaleType="fitCenter"
         android:contentDescription="@null" />
 
     <LinearLayout
-        android:layout_width="match_parent"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
+        android:layout_weight="1.1"
+        android:layout_marginStart="10dp"
         android:orientation="vertical">
 
         <TextView
-            android:id="@+id/widget_compact_headline"
+            android:id="@+id/widget_headline"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:ellipsize="end"
             android:maxLines="1"
             android:textColor="@color/widget_ink"
-            android:textSize="15sp"
+            android:textSize="14sp"
             android:textStyle="bold"
             android:text="@string/widget_preview_headline" />
 
         <TextView
-            android:id="@+id/widget_compact_legs"
+            android:id="@+id/widget_detail"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:ellipsize="end"
             android:maxLines="1"
             android:textColor="@color/widget_muted"
-            android:textSize="11sp"
-            android:text="@string/widget_preview_legs_inline" />
+            android:textSize="12sp"
+            android:text="@string/widget_preview_ride" />
+
     </LinearLayout>
+
+    <ImageView
+        android:id="@+id/widget_chart"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:layout_marginStart="10dp"
+        android:scaleType="fitXY"
+        android:contentDescription="@null" />
+
 </LinearLayout>
