@@ -10,14 +10,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Widgets
@@ -35,9 +32,7 @@ import nl.fietsweer.app.data.Settings
 import nl.fietsweer.app.data.WidgetStyle
 import nl.fietsweer.app.ui.components.ButtonLabel
 import nl.fietsweer.app.ui.components.SectionCard
-import nl.fietsweer.app.ui.components.SectionLabel
 import nl.fietsweer.app.ui.theme.AppTheme
-import nl.fietsweer.app.widget.BadgeWidget
 import nl.fietsweer.app.widget.JacketWidget
 import nl.fietsweer.app.widget.WidgetArtwork
 import nl.fietsweer.app.widget.WidgetRenderer
@@ -78,18 +73,6 @@ internal fun WidgetPage(settings: Settings, forecast: RouteForecast?, onUpdate: 
         SectionCard(title = strings.widgetBiggerTitle, subtitle = strings.widgetBiggerSub) {
             WidgetPreview(Modifier.fillMaxWidth().height(170.dp)) {
                 WidgetRenderer.layout(it, settings, snapshot, artwork, WidgetSize.LARGE)
-            }
-            Spacer(Modifier.height(10.dp))
-            Row {
-                WidgetPreview(Modifier.size(92.dp)) {
-                    WidgetRenderer.badgeViews(it, snapshot, artwork)
-                }
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    SectionLabel(strings.badgeTitle)
-                    Spacer(Modifier.height(8.dp))
-                    AddButton(strings.badgeAdd) { pin(context, BadgeWidget::class.java) }
-                }
             }
         }
     }

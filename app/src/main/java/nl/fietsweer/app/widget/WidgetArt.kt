@@ -19,7 +19,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.VectorGroup
 import androidx.compose.ui.graphics.vector.VectorPath
 import androidx.compose.ui.graphics.vector.toPath
-import nl.fietsweer.app.R
 import nl.fietsweer.app.domain.ChartSeries
 import nl.fietsweer.app.domain.DepartureWindow
 import nl.fietsweer.app.domain.RideAssessment
@@ -37,10 +36,9 @@ import kotlin.math.roundToInt
 object WidgetArt {
 
     private const val BADGE_DP = 38
-    private const val RING_DP = 160
     private const val SPAN_MS = DepartureWindow.VISIBLE_MS
 
-    enum class Picture(val fileName: String) { BADGE("badge"), RING("ring"), CHART("chart"), CHART_WIDE("chart_wide") }
+    enum class Picture(val fileName: String) { BADGE("badge"), CHART("chart"), CHART_WIDE("chart_wide") }
 
     fun file(context: Context, picture: Picture) = File(context.filesDir, "widget/${picture.fileName}.png")
 
@@ -182,41 +180,5 @@ object WidgetArt {
                 }
             )
         }
-    }
-
-    // Jacket icon in the advice colour, a ring that fills with the chance of rain, and the felt temperature.
-    fun ring(context: Context, icon: ImageVector, accent: Int, riskPercent: Int, temperature: String): Bitmap {
-        val px = (RING_DP * context.resources.displayMetrics.density).roundToInt()
-        val bitmap = Bitmap.createBitmap(px, px, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(bitmap)
-        val (accents, scheme) = palette(context)
-        val centre = px / 2f
-        val stroke = px * 0.07f
-
-        canvas.drawCircle(centre, centre, centre, Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = context.getColor(R.color.widget_surface)
-        })
-        val arc = RectF(stroke * 1.4f, stroke * 1.4f, px - stroke * 1.4f, px - stroke * 1.4f)
-        val track = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            style = Paint.Style.STROKE; strokeWidth = stroke; strokeCap = Paint.Cap.ROUND
-            color = scheme.surfaceContainerHighest.toArgb()
-        }
-        canvas.drawArc(arc, 0f, 360f, false, track)
-        if (riskPercent > 0) {
-            canvas.drawArc(arc, -90f, 360f * riskPercent.coerceIn(0, 100) / 100f, false, Paint(track).apply {
-                color = accents.rain.toArgb()
-            })
-        }
-
-        val iconPx = px * 0.34f
-        canvas.drawCircle(centre, px * 0.40f, iconPx * 0.82f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = accent })
-        drawIcon(canvas, icon, centre, px * 0.40f, iconPx)
-
-        val text = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = scheme.onSurface.toArgb(); textSize = px * 0.15f; textAlign = Paint.Align.CENTER
-            typeface = android.graphics.Typeface.DEFAULT_BOLD
-        }
-        canvas.drawText(temperature, centre, px * 0.78f, text)
-        return bitmap
     }
 }

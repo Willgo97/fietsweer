@@ -6,6 +6,4 @@
     <string name="widget_preview_ride">Back home · 17:20 · 6%</string>
     <string name="widget_preview_inline">08:00 96% · 17:30 dry</string>
     <string name="widget_preview_chips">Rain jacket · Fleece</string>
-    <string name="badge_widget_label">Jacket badge</string>
-    <string name="badge_widget_description">The jacket for your next ride and its chance of rain.</string>
 </resources>

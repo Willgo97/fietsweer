@@ -66,16 +66,13 @@ object WidgetRenderer {
                 riskColour = LightAccents.forRisk(best.risk).toArgb()
             )
         }
-        val next = assessed.firstOrNull()
         return Content(
             WidgetSnapshot(
                 headline = AdviceText.headline(advice, strings),
                 chipLine = AdviceText.chipLine(advice, strings),
                 rides = rides,
                 accent = SystemColors.adviceAccent(advice),
-                jacket = advice.anythingNeeded,
-                riskPercent = ((windows.firstOrNull()?.best ?: next)?.riskPercent) ?: 0,
-                temperature = next?.takeIf { it.hasConditions }?.let { format.temp(it.bikeFeelC) }.orEmpty()
+                jacket = advice.anythingNeeded
             ),
             windows.firstOrNull()
         )
@@ -87,8 +84,7 @@ object WidgetRenderer {
     fun artworkFor(context: Context, content: Content): WidgetArtwork {
         val snapshot = content.snapshot
         val pictures = mutableMapOf(
-            Picture.BADGE to WidgetArt.badge(context, iconFor(snapshot), snapshot.accent),
-            Picture.RING to WidgetArt.ring(context, iconFor(snapshot), snapshot.accent, snapshot.riskPercent, snapshot.temperature)
+            Picture.BADGE to WidgetArt.badge(context, iconFor(snapshot), snapshot.accent)
         )
         content.window?.let { window ->
             pictures[Picture.CHART] = WidgetArt.chart(context, window, 150, 48)
@@ -201,15 +197,6 @@ object WidgetRenderer {
         views.setTextViewText(lineId, listOf(ride.rain, ride.temperature).filter { it.isNotBlank() }.joinToString(" · "))
         views.setInt(dotId, "setColorFilter", ride.riskColour)
         views.setInt(dotId, "setImageAlpha", 255)
-    }
-
-    fun badgeViews(context: Context, snapshot: WidgetSnapshot?, artwork: WidgetArtwork): RemoteViews {
-        val views = RemoteViews(context.packageName, R.layout.widget_badge)
-        views.setOnClickPendingIntent(R.id.widget_root, openApp(context))
-        val ring = artwork.pictures[Picture.RING]
-            ?: WidgetArt.ring(context, iconFor(snapshot), snapshot?.accent ?: SystemColors.widgetIdle, 0, "")
-        views.setImageViewBitmap(R.id.widget_badge, ring)
-        return views
     }
 
     private fun openApp(context: Context): PendingIntent = MainActivity.openIntent(context, OPEN_FROM_WIDGET)

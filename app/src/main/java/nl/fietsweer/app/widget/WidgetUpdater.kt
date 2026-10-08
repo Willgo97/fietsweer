@@ -22,7 +22,7 @@ object WidgetUpdater {
         AppWidgetManager.getInstance(context).getAppWidgetIds(ComponentName(context, provider))
 
     private fun anyWidgets(context: Context): Boolean =
-        widgetIds(context, JacketWidget::class.java).isNotEmpty() || widgetIds(context, BadgeWidget::class.java).isNotEmpty()
+        widgetIds(context, JacketWidget::class.java).isNotEmpty()
 
     fun redraw(context: Context) {
         val appContext = context.applicationContext
@@ -44,8 +44,6 @@ object WidgetUpdater {
             }
             manager.updateAppWidget(id, views)
         }
-        val badges = widgetIds(appContext, BadgeWidget::class.java)
-        if (badges.isNotEmpty()) manager.updateAppWidget(badges, WidgetRenderer.badgeViews(appContext, snapshot, artwork))
     }
 
     fun forgetIfUnused(context: Context) {

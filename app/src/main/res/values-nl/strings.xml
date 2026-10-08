@@ -5,6 +5,4 @@
     <string name="widget_preview_ride">Terugrit · 17:20 · 6%</string>
     <string name="widget_preview_inline">08:00 96% · 17:30 droog</string>
     <string name="widget_preview_chips">Regenjas · Fleece</string>
-    <string name="badge_widget_label">Jasbadge</string>
-    <string name="badge_widget_description">De jas voor je volgende rit en de kans op nat.</string>
 </resources>

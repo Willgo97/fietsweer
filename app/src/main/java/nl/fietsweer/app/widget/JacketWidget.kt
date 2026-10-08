@@ -33,5 +33,3 @@ class JacketWidget : FietsweerWidget() {
         WidgetUpdater.redraw(context)
     }
 }
-
-class BadgeWidget : FietsweerWidget()

@@ -19,9 +19,7 @@ data class WidgetSnapshot(
     val chipLine: String,
     val rides: List<WidgetRide>,
     val accent: Int,
-    val jacket: Boolean,
-    val riskPercent: Int,
-    val temperature: String
+    val jacket: Boolean
 ) {
     val ridesInline: String get() = rides.joinToString(" · ") { "${it.time} ${it.rain}" }
 }
