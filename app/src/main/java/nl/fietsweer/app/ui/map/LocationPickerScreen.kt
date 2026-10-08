@@ -1,9 +1,7 @@
 package nl.fietsweer.app.ui.map
 
 import android.Manifest
-import android.annotation.SuppressLint
 import android.content.Context
-import android.content.pm.PackageManager
 import android.location.LocationManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -45,10 +43,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import nl.fietsweer.app.data.DeviceLocation
+import nl.fietsweer.app.data.DeviceLocation.toLatLon
 import nl.fietsweer.app.data.Geocoder
 import nl.fietsweer.app.data.LatLon
 import nl.fietsweer.app.data.Place
@@ -56,10 +55,22 @@ import nl.fietsweer.app.data.Settings
 import nl.fietsweer.app.ui.components.ButtonLabel
 import nl.fietsweer.app.ui.components.SectionLabel
 import nl.fietsweer.app.ui.theme.AppTheme
+import java.util.Locale
 
 enum class RouteEnd { HOME, WORK }
 
 private val CenterOfNetherlands = LatLon(52.1326, 5.2913)
+
+private const val KNOWN_PLACE_ZOOM = 15f
+private const val COUNTRY_ZOOM = 12f
+private const val LOCATED_ZOOM = 16f
+private const val FIRST_RESULT_ZOOM = 14f
+private const val PICKED_RESULT_ZOOM = 14.5f
+
+// Nominatim allows one request a second, so wait for the map to settle before asking.
+private const val REVERSE_LOOKUP_DELAY_MS = 700L
+private const val SEARCH_DELAY_MS = 280L
+private const val MIN_QUERY_LENGTH = 2
 
 @Composable
 fun RouteEndPicker(
@@ -101,7 +112,7 @@ private fun LocationPickerScreen(
     val camera = rememberMapCamera(
         initial?.lat ?: fallback.lat,
         initial?.lon ?: fallback.lon,
-        if (initial != null) 15f else 12f
+        if (initial != null) KNOWN_PLACE_ZOOM else COUNTRY_ZOOM
     )
 
     var query by remember { mutableStateOf("") }
@@ -115,25 +126,29 @@ private fun LocationPickerScreen(
 
     var searchJob by remember { mutableStateOf<Job?>(null) }
 
-    // Restarts on every drag: a debounce, as Nominatim is rate limited.
+    // Restarts on every drag, so only the place where the map comes to rest is looked up.
     LaunchedEffect(dragTick) {
         if (dragTick == 0) return@LaunchedEffect
         resolving = true
-        delay(700)
+        delay(REVERSE_LOOKUP_DELAY_MS)
         val place = Geocoder.reverse(camera.center, strings.locale.language)
         resolved = place ?: camera.centerPlace()
         resolving = false
     }
 
+    fun jumpToLastLocation() {
+        val location = (context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager)
+            ?.let(DeviceLocation::lastKnown)
+        if (location != null) {
+            camera.moveTo(location.toLatLon(), LOCATED_ZOOM)
+            dragTick++
+        } else message = strings.locationUnavailable
+    }
+
     val locationPermission = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { granted ->
-        if (granted.values.any { it }) {
-            useLastLocation(context) { location ->
-                if (location != null) { camera.moveTo(location, 16f); dragTick++ }
-                else message = strings.locationUnavailable
-            }
-        } else message = strings.locationDenied
+        if (granted.values.any { it }) jumpToLastLocation() else message = strings.locationDenied
     }
 
     Box(Modifier.fillMaxSize()) {
@@ -169,11 +184,11 @@ private fun LocationPickerScreen(
                 onQueryChange = { text ->
                     query = text
                     searchJob?.cancel()
-                    if (text.trim().length < 2) {
+                    if (text.trim().length < MIN_QUERY_LENGTH) {
                         results = emptyList(); showResults = false
                     } else {
                         searchJob = scope.launch {
-                            delay(280)
+                            delay(SEARCH_DELAY_MS)
                             searching = true
                             results = runCatching {
                                 Geocoder.search(text, camera.center, strings.locale.language)
@@ -187,7 +202,7 @@ private fun LocationPickerScreen(
                 onSearch = {
                     keyboard?.hide()
                     results.firstOrNull()?.let {
-                        camera.moveTo(it.toLatLon(), 14f)
+                        camera.moveTo(it.toLatLon(), FIRST_RESULT_ZOOM)
                         resolved = it
                         showResults = false
                     }
@@ -200,7 +215,7 @@ private fun LocationPickerScreen(
                 origin = camera.center,
                 onPick = { place ->
                     keyboard?.hide()
-                    camera.moveTo(place.toLatLon(), 14.5f)
+                    camera.moveTo(place.toLatLon(), PICKED_RESULT_ZOOM)
                     resolved = place
                     showResults = false
                     query = place.name
@@ -214,25 +229,11 @@ private fun LocationPickerScreen(
                 .padding(end = 12.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            MapButton(Icons.Rounded.Add) {
-                camera.zoom = (camera.zoom + 1f).coerceAtMost(MapCamera.MAX_ZOOM)
-            }
-            MapButton(Icons.Rounded.Remove) {
-                camera.zoom = (camera.zoom - 1f).coerceAtLeast(MapCamera.MIN_ZOOM)
-            }
+            MapButton(Icons.Rounded.Add) { camera.zoomBy(1) }
+            MapButton(Icons.Rounded.Remove) { camera.zoomBy(-1) }
             MapButton(Icons.Rounded.MyLocation) {
-                val fine = ContextCompat.checkSelfPermission(
-                    context, Manifest.permission.ACCESS_FINE_LOCATION
-                ) == PackageManager.PERMISSION_GRANTED
-                val coarse = ContextCompat.checkSelfPermission(
-                    context, Manifest.permission.ACCESS_COARSE_LOCATION
-                ) == PackageManager.PERMISSION_GRANTED
-                if (fine || coarse) {
-                    useLastLocation(context) { location ->
-                        if (location != null) {
-                            camera.moveTo(location, 16f); dragTick++
-                        } else message = strings.locationUnavailable
-                    }
+                if (DeviceLocation.hasPermission(context)) {
+                    jumpToLastLocation()
                 } else {
                     locationPermission.launch(
                         arrayOf(
@@ -297,21 +298,4 @@ private fun LocationPickerScreen(
 }
 
 private fun MapCamera.centerPlace() =
-    Place("%.4f, %.4f".format(java.util.Locale.US, lat, lon), lat, lon)
-
-@SuppressLint("MissingPermission")
-private fun useLastLocation(context: Context, onResult: (LatLon?) -> Unit) {
-    val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
-    if (locationManager == null) { onResult(null); return }
-    val providers = listOf(
-        LocationManager.GPS_PROVIDER,
-        LocationManager.NETWORK_PROVIDER,
-        LocationManager.PASSIVE_PROVIDER
-    )
-    var newest: android.location.Location? = null
-    for (provider in providers) {
-        val location = runCatching { locationManager.getLastKnownLocation(provider) }.getOrNull() ?: continue
-        if (newest == null || location.time > newest!!.time) newest = location
-    }
-    onResult(newest?.let { LatLon(it.latitude, it.longitude) })
-}
+    Place("%.4f, %.4f".format(Locale.US, lat, lon), lat, lon)

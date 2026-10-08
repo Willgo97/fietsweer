@@ -18,12 +18,12 @@ object RadarSmoothing {
 
         val channels = Array(4) { FloatArray(pixels.size) }
         for (i in pixels.indices) {
-            val p = pixels[i]
-            val alpha = (p ushr 24) / 255f
+            val pixel = pixels[i]
+            val alpha = (pixel ushr 24) / 255f
             channels[0][i] = alpha
-            channels[1][i] = ((p shr 16) and 0xFF) / 255f * alpha
-            channels[2][i] = ((p shr 8) and 0xFF) / 255f * alpha
-            channels[3][i] = (p and 0xFF) / 255f * alpha
+            channels[1][i] = ((pixel shr 16) and 0xFF) / 255f * alpha
+            channels[2][i] = ((pixel shr 8) and 0xFF) / 255f * alpha
+            channels[3][i] = (pixel and 0xFF) / 255f * alpha
         }
         val scratch = FloatArray(pixels.size)
         for (channel in channels) repeat(PASSES) {
@@ -33,7 +33,7 @@ object RadarSmoothing {
         for (i in pixels.indices) {
             val alpha = channels[0][i].coerceIn(0f, 1f)
             if (alpha < 1f / 255f) { pixels[i] = 0; continue }
-            fun colour(c: Float) = (c / alpha * 255f).toInt().coerceIn(0, 255)
+            fun colour(premultiplied: Float) = (premultiplied / alpha * 255f).toInt().coerceIn(0, 255)
             pixels[i] = ((alpha * 255f).toInt() shl 24) or (colour(channels[1][i]) shl 16) or
                 (colour(channels[2][i]) shl 8) or colour(channels[3][i])
         }

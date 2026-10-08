@@ -9,6 +9,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import nl.fietsweer.app.data.MapStyle
 import nl.fietsweer.app.data.Net
 import java.io.File
 import java.util.Collections
@@ -37,12 +38,12 @@ data class MapTheme(val source: TileSource, val darken: Boolean) {
     val attribution: String get() = source.attribution
 }
 
-fun mapThemeFor(style: nl.fietsweer.app.data.MapStyle, dark: Boolean): MapTheme =
+fun mapThemeFor(style: MapStyle, dark: Boolean): MapTheme =
     when (style) {
-        nl.fietsweer.app.data.MapStyle.SOFT -> MapTheme(TileSource.OSM_HOT, false)
-        nl.fietsweer.app.data.MapStyle.LIGHT -> MapTheme(TileSource.OSM, false)
-        nl.fietsweer.app.data.MapStyle.DARK -> MapTheme(TileSource.OSM, true)
-        nl.fietsweer.app.data.MapStyle.AUTO -> MapTheme(TileSource.OSM, dark)
+        MapStyle.SOFT -> MapTheme(TileSource.OSM_HOT, false)
+        MapStyle.LIGHT -> MapTheme(TileSource.OSM, false)
+        MapStyle.DARK -> MapTheme(TileSource.OSM, true)
+        MapStyle.AUTO -> MapTheme(TileSource.OSM, dark)
     }
 
 object TileLoader {

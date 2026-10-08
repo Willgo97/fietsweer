@@ -31,15 +31,10 @@ import androidx.compose.ui.unit.IntSize
 import nl.fietsweer.app.data.Geo
 import nl.fietsweer.app.data.LatLon
 import nl.fietsweer.app.ui.theme.MapPalette
-import kotlin.math.PI
-import kotlin.math.atan
-import kotlin.math.cos
 import kotlin.math.floor
 import kotlin.math.ln
 import kotlin.math.pow
 import kotlin.math.roundToInt
-import kotlin.math.sinh
-import kotlin.math.tan
 
 private val DARK_TILE_FILTER: ColorFilter = ColorFilter.colorMatrix(
     ColorMatrix(
@@ -65,6 +60,11 @@ class MapCamera(lat: Double, lon: Double, zoom: Float) {
         newZoom?.let { zoom = it.coerceIn(MIN_ZOOM, MAX_ZOOM) }
     }
 
+    fun zoomBy(steps: Int, snapToWhole: Boolean = false) {
+        val from = if (snapToWhole) zoom.roundToInt().toFloat() else zoom
+        zoom = (from + steps).coerceIn(MIN_ZOOM, MAX_ZOOM)
+    }
+
     companion object {
         const val MIN_ZOOM = 3f
         const val MAX_ZOOM = 18.5f
@@ -72,7 +72,7 @@ class MapCamera(lat: Double, lon: Double, zoom: Float) {
 }
 
 @Composable
-fun rememberMapCamera(lat: Double, lon: Double, zoom: Float = 13f): MapCamera =
+fun rememberMapCamera(lat: Double, lon: Double, zoom: Float): MapCamera =
     remember { MapCamera(lat, lon, zoom) }
 
 data class MapMarker(val point: LatLon, val color: Color)
@@ -97,8 +97,7 @@ fun TileMap(
     val onTileLoaded = remember { { loadedTiles++; Unit } }
 
     val palette = if (darken) MapPalette.Dark else MapPalette.Light
-    val tileScale = density.coerceIn(1f, 2f)
-    val baseTile = 256f * tileScale
+    val baseTile = TILE_SIZE_PX * tileScaleFor(density)
 
     DisposableEffect(source) {
         TileLoader.clearFailures()
@@ -231,21 +230,10 @@ private fun DrawScope.drawPin(at: Offset, color: Color, density: Float) {
     drawCircle(Color.White, radius = radius * 0.36f, center = head)
 }
 
-private fun lonToWorldX(lon: Double): Double = (lon + 180.0) / 360.0
+private const val MIN_ROUTE_SPAN_KM = 0.4
+private const val ROUTE_MARGIN_FACTOR = 1.8
 
-private fun latToWorldY(lat: Double): Double {
-    val latRadians = Math.toRadians(lat.coerceIn(-85.05112878, 85.05112878))
-    return (1.0 - ln(tan(latRadians) + 1.0 / cos(latRadians)) / PI) / 2.0
-}
-
-private fun worldXToLon(worldX: Double): Double = worldX * 360.0 - 180.0
-
-private fun worldYToLat(worldY: Double): Double =
-    Math.toDegrees(atan(sinh(PI * (1.0 - 2.0 * worldY))))
-
-fun zoomForPair(from: LatLon, to: LatLon, widthPx: Float, densityScale: Float): Float {
-    val distanceKm = Geo.haversineKm(from, to).coerceAtLeast(0.4)
-    val target = Geo.zoomForSpan(from.lat, distanceKm * 1.8, widthPx.toDouble()).toFloat()
-    val tileAdjust = ln(densityScale.coerceIn(1f, 2f)) / ln(2f)
-    return (target - tileAdjust).coerceIn(MapCamera.MIN_ZOOM, MapCamera.MAX_ZOOM)
+fun zoomForPair(from: LatLon, to: LatLon, widthPx: Float, density: Float): Float {
+    val distanceKm = Geo.haversineKm(from, to).coerceAtLeast(MIN_ROUTE_SPAN_KM)
+    return zoomToShow(from.lat, distanceKm * ROUTE_MARGIN_FACTOR, widthPx, density)
 }

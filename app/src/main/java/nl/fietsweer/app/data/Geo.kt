@@ -5,7 +5,6 @@ import kotlin.math.abs
 import kotlin.math.asin
 import kotlin.math.atan2
 import kotlin.math.cos
-import kotlin.math.ln
 import kotlin.math.sin
 import kotlin.math.sqrt
 
@@ -52,10 +51,4 @@ object Geo {
     }
 
     fun midpoint(from: LatLon, to: LatLon) = interpolate(from, to, 0.5)
-
-    fun zoomForSpan(lat: Double, km: Double, pixels: Double): Double {
-        val metresPerPixel = (km * 1000.0) / pixels.coerceAtLeast(1.0)
-        if (metresPerPixel <= 0) return 13.0
-        return (ln(156543.03392 * cos(lat * DEGREES_TO_RADIANS) / metresPerPixel) / ln(2.0)).coerceIn(2.0, 17.0)
-    }
 }

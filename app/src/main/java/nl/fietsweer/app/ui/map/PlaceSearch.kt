@@ -26,6 +26,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -37,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import nl.fietsweer.app.data.Geo
 import nl.fietsweer.app.data.LatLon
 import nl.fietsweer.app.data.Place
+import nl.fietsweer.app.ui.components.Caption
 import nl.fietsweer.app.ui.theme.AppTheme
 
 @Composable
@@ -65,7 +67,7 @@ internal fun PlaceSearchField(
                 placeholder = { Text(strings.searchPlace) },
                 singleLine = true,
                 modifier = Modifier.weight(1f),
-                colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Color.Transparent,
                     unfocusedBorderColor = Color.Transparent
                 ),
@@ -130,11 +132,7 @@ internal fun PlaceSearchResults(
                         Column(Modifier.weight(1f)) {
                             Text(place.name, style = MaterialTheme.typography.bodyLarge)
                             if (place.detail.isNotBlank()) {
-                                Text(
-                                    place.detail,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                                Caption(place.detail)
                             }
                         }
                         Text(
