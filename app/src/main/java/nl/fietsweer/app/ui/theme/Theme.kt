@@ -1,6 +1,5 @@
 package nl.fietsweer.app.ui.theme
 
-import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
@@ -18,6 +17,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import nl.fietsweer.app.data.AccentColor
 import nl.fietsweer.app.data.ThemeMode
 import nl.fietsweer.app.domain.Formatter
 import nl.fietsweer.app.domain.Strings
@@ -26,9 +26,7 @@ val LocalAccents: ProvidableCompositionLocal<Accents> = staticCompositionLocalOf
 val LocalStrings: ProvidableCompositionLocal<Strings> = staticCompositionLocalOf { Strings() }
 val LocalFormatter: ProvidableCompositionLocal<Formatter> = staticCompositionLocalOf { Formatter(Strings()) }
 
-val Typography.caption: TextStyle get() = labelSmall.copy(fontWeight = FontWeight.Normal)
-
-val Typography.microLabel: TextStyle get() = labelSmall.copy(fontSize = 10.sp)
+val Typography.caption: TextStyle get() = bodySmall
 
 @Composable
 fun ThemeMode.isDark(): Boolean = when (this) {
@@ -53,6 +51,7 @@ private val AppTypography = Typography().let { base ->
         ),
         titleLarge = base.titleLarge.copy(fontWeight = FontWeight.SemiBold),
         titleMedium = base.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+        titleSmall = base.titleSmall.copy(fontWeight = FontWeight.SemiBold),
         labelLarge = base.labelLarge.copy(fontWeight = FontWeight.SemiBold),
         labelSmall = TextStyle(
             fontFamily = FontFamily.Default,
@@ -75,17 +74,17 @@ object AppTheme {
 @Composable
 fun FietsweerTheme(
     themeMode: ThemeMode,
-    dynamicColor: Boolean,
+    accent: AccentColor,
     strings: Strings,
     content: @Composable () -> Unit
 ) {
     val dark = themeMode.isDark()
     val context = LocalContext.current
+    val brand = if (dark) BrandDark else BrandLight
     val scheme: ColorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ->
+        accent == AccentColor.WALLPAPER && supportsWallpaperColours ->
             if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        dark -> BrandDark
-        else -> BrandLight
+        else -> accentColour(accent, dark)?.let { brand.withAccent(it) } ?: brand
     }
     val accents = if (dark) DarkAccents else LightAccents
     val format = remember(strings) { Formatter(strings) }

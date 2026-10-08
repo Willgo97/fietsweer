@@ -40,6 +40,7 @@ fun SectionCard(
     title: String? = null,
     subtitle: String? = null,
     contentPadding: Int = 16,
+    verticalPadding: Int = contentPadding,
     border: BorderStroke? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
@@ -50,7 +51,7 @@ fun SectionCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         border = border
     ) {
-        Column(Modifier.padding(contentPadding.dp)) {
+        Column(Modifier.padding(horizontal = contentPadding.dp, vertical = verticalPadding.dp)) {
             if (title != null) {
                 SectionLabel(title)
                 if (subtitle != null) {

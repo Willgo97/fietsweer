@@ -65,15 +65,6 @@ fun Dot(color: Color, size: Dp) {
 }
 
 @Composable
-fun LegendDot(text: String, color: Color) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Dot(color, 9.dp)
-        Spacer(Modifier.width(5.dp))
-        Caption(text)
-    }
-}
-
-@Composable
 fun Pill(
     text: String,
     containerColor: Color,

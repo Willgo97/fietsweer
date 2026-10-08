@@ -7,20 +7,28 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.DirectionsBike
 import androidx.compose.material.icons.rounded.Insights
+import androidx.compose.material.icons.rounded.Map
 import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material.icons.rounded.WbSunny
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -32,8 +40,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import kotlinx.coroutines.delay
@@ -41,11 +53,13 @@ import kotlinx.coroutines.launch
 import nl.fietsweer.app.data.Alert
 import nl.fietsweer.app.data.Settings
 import nl.fietsweer.app.domain.Strings
+import nl.fietsweer.app.ui.components.CARD_GAP
 import nl.fietsweer.app.ui.map.MapTheme
 import nl.fietsweer.app.ui.map.RouteEnd
 import nl.fietsweer.app.ui.map.RouteEndPicker
 import nl.fietsweer.app.ui.map.mapThemeFor
 import nl.fietsweer.app.ui.screens.forecast.ForecastScreen
+import nl.fietsweer.app.ui.screens.map.MapScreen
 import nl.fietsweer.app.ui.screens.onboarding.OnboardingFlow
 import nl.fietsweer.app.ui.screens.settings.AlertEditorScreen
 import nl.fietsweer.app.ui.screens.settings.AlertsPage
@@ -64,8 +78,9 @@ private sealed interface Overlay {
 }
 
 private enum class Tab(val icon: ImageVector) {
-    TODAY(Icons.Rounded.WbSunny),
+    TODAY(Icons.AutoMirrored.Rounded.DirectionsBike),
     FORECAST(Icons.Rounded.Insights),
+    MAP(Icons.Rounded.Map),
     SETTINGS(Icons.Rounded.Settings)
 }
 
@@ -76,7 +91,7 @@ fun FietsweerRoot(viewModel: AppViewModel, versionName: String) {
 
     FietsweerTheme(
         themeMode = settings.theme,
-        dynamicColor = settings.dynamicColor,
+        accent = settings.accent,
         strings = strings
     ) {
         val mapTheme = mapThemeFor(settings.mapStyle, settings.theme.isDark())
@@ -120,11 +135,12 @@ private fun MainShell(
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         nowTick = System.currentTimeMillis()
-        viewModel.refresh(force = false)
+        viewModel.refresh(force = true)
         viewModel.rescheduleAlarms()
     }
 
-    val inSubPage = selectedTab == 2 && settingsPage != SettingsPage.MENU
+    val settingsTab = Tab.SETTINGS.ordinal
+    val inSubPage = selectedTab == settingsTab && settingsPage != SettingsPage.MENU
     BackHandler(enabled = overlay != Overlay.None) { overlay = Overlay.None }
     BackHandler(enabled = overlay == Overlay.None && inSubPage) { settingsPage = SettingsPage.MENU }
     BackHandler(enabled = overlay == Overlay.None && !inSubPage && selectedTab != 0) { selectedTab = 0 }
@@ -132,28 +148,9 @@ private fun MainShell(
     Box(Modifier.fillMaxSize()) {
         Scaffold(
             bottomBar = {
-                NavigationBar {
-                    Tab.entries.forEachIndexed { index, tab ->
-                        NavigationBarItem(
-                            selected = selectedTab == index,
-                            onClick = {
-                                if (index == 2 && selectedTab == 2) settingsPage = SettingsPage.MENU
-                                selectedTab = index
-                            },
-                            icon = { Icon(tab.icon, null) },
-                            label = {
-                                Text(
-                                    when (tab) {
-                                        Tab.TODAY -> strings.tabToday
-                                        Tab.FORECAST -> strings.tabForecast
-                                        Tab.SETTINGS -> strings.tabSettings
-                                    },
-                                    style = MaterialTheme.typography.labelSmall
-                                )
-                            },
-                            alwaysShowLabel = true
-                        )
-                    }
+                TabBar(selectedTab) { index ->
+                    if (index == settingsTab && selectedTab == settingsTab) settingsPage = SettingsPage.MENU
+                    selectedTab = index
                 }
             },
             snackbarHost = { SnackbarHost(snackbar) }
@@ -174,7 +171,6 @@ private fun MainShell(
                         nowTick = nowTick,
                         contentPadding = innerPadding,
                         onRefresh = { viewModel.refresh(force = true) },
-                        onOpenForecast = { selectedTab = 1 },
                         onSetup = { viewModel.update { it.copy(setupDone = false) } }
                     )
 
@@ -183,6 +179,14 @@ private fun MainShell(
                         forecastState = forecastState,
                         contentPadding = innerPadding,
                         onRefresh = { viewModel.refresh(force = true) },
+                        onSetup = { viewModel.update { it.copy(setupDone = false) } },
+                        onAskedLocation = { viewModel.update { it.copy(askedLocation = true) } }
+                    )
+
+                    2 -> MapScreen(
+                        settings = settings,
+                        contentPadding = innerPadding,
+                        mapTheme = mapTheme,
                         onSetup = { viewModel.update { it.copy(setupDone = false) } }
                     )
 
@@ -258,4 +262,49 @@ private fun MainShell(
 private suspend fun SnackbarHostState.showMessage(text: String) {
     currentSnackbarData?.dismiss()
     showSnackbar(text)
+}
+
+@Composable
+private fun TabBar(selected: Int, onSelect: (Int) -> Unit) {
+    val strings = AppTheme.strings
+    Card(
+        modifier = Modifier
+            .background(MaterialTheme.colorScheme.background)
+            .navigationBarsPadding()
+            .padding(start = CARD_GAP, end = CARD_GAP, top = CARD_GAP, bottom = CARD_GAP)
+            .fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+    ) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(8.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            Tab.entries.forEachIndexed { index, tab ->
+                val active = index == selected
+                Box(
+                    Modifier
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(if (active) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent)
+                        .clickable { onSelect(index) }
+                        .padding(horizontal = 22.dp, vertical = 10.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        tab.icon,
+                        when (tab) {
+                            Tab.TODAY -> strings.tabToday
+                            Tab.FORECAST -> strings.tabForecast
+                            Tab.MAP -> strings.tabMap
+                            Tab.SETTINGS -> strings.tabSettings
+                        },
+                        tint = if (active) MaterialTheme.colorScheme.onSecondaryContainer
+                        else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
 }
