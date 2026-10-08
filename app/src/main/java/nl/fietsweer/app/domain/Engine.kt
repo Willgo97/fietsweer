@@ -13,8 +13,6 @@ import kotlin.math.sin
 
 enum class WindRelation { HEAD, CROSS, TAIL }
 
-data class ModelVerdict(val label: String, val wet: Boolean)
-
 data class RideAssessment(
     val leg: Leg,
     val departureMs: Long,
@@ -30,7 +28,6 @@ data class RideAssessment(
     val ensembleProbability: Double?,
     val radarRisk: Double?,
     val radarMaxMmh: Double,
-    val modelVerdicts: List<ModelVerdict>,
     val averageMm: Double,
     val maxMm: Double,
     val agreement: Double,
@@ -51,23 +48,13 @@ data class RideAssessment(
     val windDelayMinutes: Int get() = durationMinutes - stillAirDurationMinutes
 }
 
-data class DryWindow(
-    val slots: List<RideAssessment>,
-    val minutes: Int,
-    val best: RideAssessment,
-    val averageRisk: Double,
-    val score: Double
-) {
-    val from: RideAssessment get() = slots.first()
-    val to: RideAssessment get() = slots.last()
-}
-
 class Engine(private val forecast: RouteForecast, private val settings: Settings) {
 
     companion object {
         const val GRID_MINUTES = 15
         const val SAMPLE_STEP_MINUTES = 5
         const val DRY_RISK = 0.22
+        private const val MIN_HOUR_OVERLAP_MS = 10 * 60_000L
 
         fun rideDurationMinutes(distanceKm: Double, speedKmh: Double): Int {
             if (speedKmh <= 0.5) return 5
@@ -120,6 +107,12 @@ class Engine(private val forecast: RouteForecast, private val settings: Settings
         return low
     }
 
+    // Precipitation is a sum over the interval ending at its timestamp.
+    private fun intervalEndingAfter(times: LongArray, timeMs: Long): Int {
+        if (times.size < 2) return indexAt(times, timeMs)
+        return indexAt(times, timeMs + (times[1] - times[0]) - 1)
+    }
+
     private fun value(series: Map<String, DoubleArray>, times: LongArray, key: String, timeMs: Long): Double {
         val values = series[key] ?: return Double.NaN
         val i = indexAt(times, timeMs)
@@ -169,7 +162,7 @@ class Engine(private val forecast: RouteForecast, private val settings: Settings
         val samples = samples(leg, durationMinutes)
         val arrival = departureMs + durationMinutes * 60_000L
 
-        val verdicts = ArrayList<ModelVerdict>(forecast.models.size)
+        var modelCount = 0
         var wetCount = 0
         var mmSum = 0.0
         var mmMax = 0.0
@@ -178,7 +171,7 @@ class Engine(private val forecast: RouteForecast, private val settings: Settings
             var anyValue = false
             for (sample in samples) {
                 val timeMs = departureMs + sample.minute * 60_000L
-                val i = indexAt(forecast.modelTimes, timeMs)
+                val i = intervalEndingAfter(forecast.modelTimes, timeMs)
                 if (i < 0) continue
                 val values = model.precipitationPerPoint[sample.pointIndex]
                 if (i >= values.size) continue
@@ -188,20 +181,20 @@ class Engine(private val forecast: RouteForecast, private val settings: Settings
             // Short-range models run out after a day or two; no data is not a dry vote.
             if (!anyValue) continue
             val wet = peak >= settings.wetThreshold
-            verdicts += ModelVerdict(model.label, wet)
+            modelCount++
             if (wet) wetCount++
             mmSum += peak
             if (peak > mmMax) mmMax = peak
         }
-        val modelCount = verdicts.size
         val modelsWet = if (modelCount == 0) 0.0 else wetCount.toDouble() / modelCount
 
         var ensembleProbability: Double? = null
         if (forecast.ensembleMembers.isNotEmpty() && forecast.ensembleTimes.isNotEmpty()) {
             val hoursDuringRide = ArrayList<Int>()
             for (i in forecast.ensembleTimes.indices) {
-                val hourStart = forecast.ensembleTimes[i]
-                if (hourStart + 3_600_000L > departureMs && hourStart < arrival) hoursDuringRide += i
+                val hourEnd = forecast.ensembleTimes[i]
+                val overlapMs = minOf(hourEnd, arrival) - maxOf(hourEnd - 3_600_000L, departureMs)
+                if (overlapMs >= MIN_HOUR_OVERLAP_MS) hoursDuringRide += i
             }
             if (hoursDuringRide.isNotEmpty()) {
                 var wetMembers = 0
@@ -319,7 +312,6 @@ class Engine(private val forecast: RouteForecast, private val settings: Settings
             ensembleProbability = ensembleProbability,
             radarRisk = radarRisk,
             radarMaxMmh = radarMax,
-            modelVerdicts = verdicts,
             averageMm = if (modelCount == 0) 0.0 else mmSum / modelCount,
             maxMm = mmMax,
             agreement = abs(2 * modelsWet - 1),
@@ -365,20 +357,6 @@ class Engine(private val forecast: RouteForecast, private val settings: Settings
         return wind10Kmh * cos(relative)
     }
 
-    fun scan(leg: Leg, horizonMinutes: Int): List<RideAssessment> {
-        val fromMs = System.currentTimeMillis()
-        if (!forecast.hasModels) return emptyList()
-        val slots = ArrayList<RideAssessment>()
-        val gridStepsNeeded = Math.ceil(stillAirDurationMinutes * 2.0 / GRID_MINUTES).toInt() + 1
-        val lastStart = forecast.modelTimes.size - gridStepsNeeded
-        for (i in 0 until lastStart) {
-            val departureMs = forecast.modelTimes[i]
-            if (departureMs + GRID_MINUTES * 60_000L <= fromMs) continue
-            if (departureMs - fromMs > horizonMinutes * 60_000L) break
-            slots += assess(departureMs, leg)
-        }
-        return slots
-    }
 
     fun scanWindow(leg: Leg, fromMs: Long, untilMs: Long): List<RideAssessment> {
         if (!forecast.hasModels || untilMs < fromMs) return emptyList()
@@ -392,52 +370,5 @@ class Engine(private val forecast: RouteForecast, private val settings: Settings
             slots += assess(departureMs, leg)
         }
         return slots
-    }
-
-    fun ridePrecipitationProfile(departureMs: Long, leg: Leg, durationMinutes: Int): List<Double> {
-        if (forecast.models.isEmpty()) return emptyList()
-        val steps = (durationMinutes / GRID_MINUTES) + 1
-        return (0..steps).map { step ->
-            val minute = step * GRID_MINUTES
-            val timeMs = departureMs + minute * 60_000L
-            val fraction = if (durationMinutes == 0) 0.0 else (minute.toDouble() / durationMinutes).coerceIn(0.0, 1.0)
-            var pointIndex = (fraction * (pointCount - 1)).roundToInt().coerceIn(0, pointCount - 1)
-            if (leg == Leg.RETURN) pointIndex = pointCount - 1 - pointIndex
-            val i = indexAt(forecast.modelTimes, timeMs)
-            if (i < 0) 0.0 else {
-                var sum = 0.0
-                var count = 0
-                for (model in forecast.models) {
-                    val values = model.precipitationPerPoint[pointIndex]
-                    if (i < values.size && !values[i].isNaN()) { sum += values[i]; count++ }
-                }
-                if (count == 0) 0.0 else sum / count
-            }
-        }
-    }
-
-    fun dryWindows(slots: List<RideAssessment>): List<DryWindow> {
-        val groups = ArrayList<MutableList<RideAssessment>>()
-        var currentGroup: MutableList<RideAssessment>? = null
-        for (slot in slots) {
-            val usable = slot.risk < DRY_RISK && !slot.isNight
-            if (usable) {
-                if (currentGroup == null) { currentGroup = mutableListOf(slot); groups += currentGroup }
-                else currentGroup.add(slot)
-            } else currentGroup = null
-        }
-        return groups.map { group ->
-            val minutes = group.size * GRID_MINUTES
-            val best = group.reduce { best, candidate -> if (candidate.risk < best.risk - 0.05) candidate else best }
-            val averageRisk = group.sumOf { it.risk } / group.size
-            val leadHours = (group.first().departureMs - System.currentTimeMillis()) / 3_600_000.0
-            DryWindow(
-                slots = group,
-                minutes = minutes,
-                best = best,
-                averageRisk = averageRisk,
-                score = (1 - averageRisk) * 3 + minOf(minutes, 180) / 180.0 - leadHours * 0.08
-            )
-        }.sortedByDescending { it.score }
     }
 }

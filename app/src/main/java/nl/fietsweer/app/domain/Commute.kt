@@ -32,6 +32,15 @@ object Commute {
         return legs.map { nextRide(settings, it, nowMs, days) }.sortedBy { it.departureMs }
     }
 
+    fun ridesBetween(settings: Settings, fromMs: Long, untilMs: Long): List<PlannedRide> {
+        val days = alertDays(settings)
+        return listOf(Leg.OUTBOUND, Leg.RETURN).flatMap { leg ->
+            generateSequence(nextRide(settings, leg, fromMs, days)) { nextRide(settings, leg, it.latestMs + 1, days) }
+                .takeWhile { it.departureMs <= untilMs }
+                .toList()
+        }.sortedBy { it.departureMs }
+    }
+
     private fun alertDays(settings: Settings): Set<Int> =
         settings.alerts.filter { it.enabled }.flatMap { it.days }.toSet()
             .filter { it in 1..7 }.toSet().ifEmpty { ALL_DAYS }

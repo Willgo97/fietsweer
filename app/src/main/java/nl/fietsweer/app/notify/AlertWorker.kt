@@ -36,7 +36,7 @@ class AlertWorker(context: Context, params: WorkerParameters) : CoroutineWorker(
 
         val engine = Engine(forecast, settings)
         val rides = Commute.plannedRides(settings, coverage).map(engine::assess)
-        val advice = Jacket.forRides(rides, settings)
+        val advice = Jacket.forNextDay(rides, settings)
 
         if (alert?.onlyWhenNeeded == true && !advice.anythingNeeded) {
             return Result.success()

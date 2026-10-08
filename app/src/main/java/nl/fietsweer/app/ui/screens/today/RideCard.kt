@@ -1,9 +1,7 @@
 package nl.fietsweer.app.ui.screens.today
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -22,41 +20,52 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import nl.fietsweer.app.data.Leg
 import nl.fietsweer.app.domain.AdviceText
-import nl.fietsweer.app.domain.Engine
 import nl.fietsweer.app.domain.RideAssessment
 import nl.fietsweer.app.domain.WindRelation
-import nl.fietsweer.app.ui.components.Caption
 import nl.fietsweer.app.ui.components.Pill
 import nl.fietsweer.app.ui.components.SectionCard
 import nl.fietsweer.app.ui.components.SectionLabel
-import nl.fietsweer.app.ui.components.charts.RainSparkline
 import nl.fietsweer.app.ui.theme.AppTheme
+import nl.fietsweer.app.ui.theme.caption
 import kotlin.math.abs
 
 @Composable
-internal fun RideCard(ride: RideAssessment, engine: Engine?, onOpen: () -> Unit) {
+internal fun RideCard(
+    ride: RideAssessment,
+    window: DepartureWindow?,
+    modifier: Modifier = Modifier
+) {
     val strings = AppTheme.strings
     val format = AppTheme.format
     val accents = AppTheme.accents
     val riskColor = accents.forRisk(ride.risk)
-    val today = format.isToday(ride.departureMs)
+    val rainLabel = if (ride.averageMm >= 0.05)
+        "${strings.chanceOfRainShort} ${format.millimetres(ride.averageMm)} mm"
+    else strings.chanceOfRainShort
 
     SectionCard(
-        modifier = Modifier.clickable(onClick = onOpen),
-        contentPadding = 14,
-        border = if (today) null
-        else BorderStroke(1.dp, MaterialTheme.colorScheme.tertiary.copy(alpha = 0.45f))
+        modifier = modifier,
+        contentPadding = 14
     ) {
-        LegHeader(ride.leg, ride.departureMs)
+        LegHeader(ride.leg, ride.departureMs) {
+            Text(
+                format.riskWord(ride.risk),
+                style = MaterialTheme.typography.titleSmall,
+                color = riskColor,
+                maxLines = 1,
+                autoSize = TextAutoSize.StepBased(minFontSize = 10.sp, maxFontSize = MaterialTheme.typography.titleSmall.fontSize),
+                modifier = Modifier.padding(start = 8.dp)
+            )
+        }
         Spacer(Modifier.height(2.dp))
         Row(verticalAlignment = Alignment.Bottom) {
             Text(
@@ -66,7 +75,7 @@ internal fun RideCard(ride: RideAssessment, engine: Engine?, onOpen: () -> Unit)
             Spacer(Modifier.width(8.dp))
             Text(
                 strings.minutesShort(ride.durationMinutes),
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(bottom = 2.dp)
             )
@@ -75,26 +84,18 @@ internal fun RideCard(ride: RideAssessment, engine: Engine?, onOpen: () -> Unit)
                 Spacer(Modifier.width(6.dp))
                 Text(
                     (if (slower) "+" else "−") + strings.minutesShort(abs(ride.windDelayMinutes)),
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = if (slower) accents.likelyWet else accents.dry,
                     modifier = Modifier.padding(bottom = 2.dp)
                 )
             }
-            Spacer(Modifier.weight(1f))
-            Text(
-                format.riskWord(ride.risk),
-                style = MaterialTheme.typography.titleSmall,
-                color = riskColor,
-                modifier = Modifier.padding(bottom = 1.dp, start = 8.dp)
-            )
         }
 
         Spacer(Modifier.height(10.dp))
 
         Row(
             Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             MiniStat(
@@ -118,33 +119,25 @@ internal fun RideCard(ride: RideAssessment, engine: Engine?, onOpen: () -> Unit)
             MiniStat(
                 Icons.Rounded.Umbrella,
                 format.percent(ride.risk),
-                strings.chanceOfRainShort,
+                rainLabel,
                 riskColor,
                 Modifier.weight(1f)
             )
         }
 
-        if (engine != null) {
-            val profile = remember(ride.departureMs, ride.leg, ride.durationMinutes) {
-                engine.ridePrecipitationProfile(ride.departureMs, ride.leg, ride.durationMinutes)
-            }
-            if (profile.any { it > 0.03 }) {
-                Spacer(Modifier.height(8.dp))
-                Caption("${strings.expectedRain}: ${format.millimetresPrecise(ride.averageMm)} mm")
-                Spacer(Modifier.height(2.dp))
-                RainSparkline(profile, accents.rain, height = 20)
-            }
-        }
+        if (window != null) DepartureChart(window, Modifier.weight(1f))
     }
 }
 
 @Composable
-internal fun LegHeader(leg: Leg, departureMs: Long) {
+internal fun LegHeader(leg: Leg, departureMs: Long, trailing: @Composable () -> Unit = {}) {
     val strings = AppTheme.strings
-    Row(verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         SectionLabel(AdviceText.legName(leg, strings))
         Spacer(Modifier.width(8.dp))
         DayBadge(departureMs)
+        Spacer(Modifier.weight(1f))
+        trailing()
     }
 }
 
@@ -158,7 +151,7 @@ private fun DayBadge(departureMs: Long) {
         else MaterialTheme.colorScheme.tertiaryContainer,
         contentColor = if (today) MaterialTheme.colorScheme.onSurfaceVariant
         else MaterialTheme.colorScheme.onTertiaryContainer,
-        fontWeight = if (today) FontWeight.Medium else FontWeight.Bold
+        fontWeight = FontWeight.Bold
     )
 }
 
@@ -179,10 +172,17 @@ private fun MiniStat(
         ) {
             Icon(icon, null, tint = accent, modifier = Modifier.size(17.dp))
         }
-        Spacer(Modifier.width(8.dp))
+        Spacer(Modifier.width(6.dp))
         Column {
             Text(value, style = MaterialTheme.typography.titleSmall, maxLines = 1)
-            Caption(label, maxLines = 1)
+            Text(
+                label,
+                style = MaterialTheme.typography.caption,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                softWrap = false,
+                autoSize = TextAutoSize.StepBased(minFontSize = 8.sp, maxFontSize = MaterialTheme.typography.caption.fontSize)
+            )
         }
     }
 }

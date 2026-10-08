@@ -45,9 +45,6 @@ class Formatter(private val strings: Strings) {
     fun millimetres(value: Double): String =
         if (value.isNaN()) "–" else String.format(locale, "%.1f", value)
 
-    fun millimetresPrecise(value: Double): String =
-        if (value.isNaN()) "–" else String.format(locale, "%.2f", value)
-
     fun kilometres(value: Double): String = String.format(locale, "%.1f", value)
 
     private fun speed(kmh: Double): String = if (kmh.isNaN()) "–" else "${kmh.roundToInt()}"
@@ -62,11 +59,6 @@ class Formatter(private val strings: Strings) {
         val wrapped = ((minuteOfDay % 1440) + 1440) % 1440
         return String.format(Locale.ROOT, "%02d:%02d", wrapped / 60, wrapped % 60)
     }
-
-    fun durationText(minutes: Int): String =
-        if (minutes >= 60) {
-            strings.hoursShort(String.format(locale, "%.1f", minutes / 60.0).removeSuffix(",0").removeSuffix(".0"))
-        } else strings.minutesShort(minutes)
 
     fun hoursMinutes(minutes: Int): String {
         if (minutes < 60) return strings.minutesShort(minutes)
@@ -105,11 +97,6 @@ class Formatter(private val strings: Strings) {
         days.isEmpty() -> strings.neverRepeats
         else -> days.sorted().joinToString(", ") { strings.dayNamesShort[it - 1] }
     }
-
-    fun longDate(ms: Long): String =
-        Instant.ofEpochMilli(ms).atZone(zone)
-            .format(DateTimeFormatter.ofPattern("EEEE d MMMM", locale))
-            .replaceFirstChar { it.uppercase(locale) }
 
     fun relativeShort(ms: Long): String {
         val delta = ms - System.currentTimeMillis()

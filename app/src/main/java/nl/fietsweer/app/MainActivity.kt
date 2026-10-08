@@ -34,7 +34,5 @@ class MainActivity : ComponentActivity() {
         setContent {
             FietsweerRoot(viewModel, versionName)
         }
-
-        viewModel.refresh(force = false)
     }
 }

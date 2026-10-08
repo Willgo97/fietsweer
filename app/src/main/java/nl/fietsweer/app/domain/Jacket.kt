@@ -1,6 +1,9 @@
 package nl.fietsweer.app.domain
 
 import nl.fietsweer.app.data.Settings
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 
 enum class Need { NO, MAYBE, YES }
 
@@ -20,6 +23,14 @@ data class Advice(
 }
 
 object Jacket {
+
+    fun forNextDay(rides: List<RideAssessment>, settings: Settings): Advice {
+        val first = rides.minByOrNull { it.departureMs } ?: return forRides(rides, settings)
+        val day = localDate(first.departureMs)
+        return forRides(rides.filter { localDate(it.departureMs) == day }, settings)
+    }
+
+    private fun localDate(ms: Long): LocalDate = Instant.ofEpochMilli(ms).atZone(ZoneId.systemDefault()).toLocalDate()
 
     fun forRides(rides: List<RideAssessment>, settings: Settings): Advice {
         if (rides.isEmpty())

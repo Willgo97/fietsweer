@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.DirectionsBike
 import androidx.compose.material.icons.rounded.AcUnit
@@ -37,6 +38,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import nl.fietsweer.app.domain.Advice
 import nl.fietsweer.app.domain.AdviceText
 import nl.fietsweer.app.domain.Layer
@@ -94,7 +96,12 @@ internal fun HeroCard(advice: Advice, current: Map<String, Double>) {
                     Text(
                         AdviceText.headline(advice, strings),
                         style = MaterialTheme.typography.headlineMedium,
-                        color = Color.White
+                        color = Color.White,
+                        maxLines = 1,
+                        autoSize = TextAutoSize.StepBased(
+                            minFontSize = 14.sp,
+                            maxFontSize = MaterialTheme.typography.headlineMedium.fontSize
+                        )
                     )
                 }
                 if (!advice.anythingNeeded && advice.temperatureKnown) {
@@ -186,7 +193,7 @@ private fun NowStrip(
         ) {
             Text(
                 format.temp(temp),
-                style = MaterialTheme.typography.headlineLarge,
+                style = MaterialTheme.typography.headlineMedium,
                 color = Color.White
             )
             Spacer(Modifier.width(14.dp))
@@ -211,7 +218,7 @@ private fun NowStrip(
                 if (line.isNotEmpty()) {
                     Text(
                         line,
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = Color.White.copy(alpha = 0.85f)
                     )
                 }
