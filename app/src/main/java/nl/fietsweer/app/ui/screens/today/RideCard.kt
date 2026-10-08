@@ -1,7 +1,6 @@
 package nl.fietsweer.app.ui.screens.today
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -12,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Air
 import androidx.compose.material.icons.rounded.Thermostat
@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import nl.fietsweer.app.data.Leg
 import nl.fietsweer.app.domain.AdviceText
+import nl.fietsweer.app.domain.DepartureWindow
 import nl.fietsweer.app.domain.RideAssessment
 import nl.fietsweer.app.domain.WindRelation
 import nl.fietsweer.app.ui.components.Pill
@@ -130,7 +131,7 @@ internal fun RideCard(
 }
 
 @Composable
-internal fun LegHeader(leg: Leg, departureMs: Long, trailing: @Composable () -> Unit = {}) {
+private fun LegHeader(leg: Leg, departureMs: Long, trailing: @Composable () -> Unit = {}) {
     val strings = AppTheme.strings
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         SectionLabel(AdviceText.legName(leg, strings))

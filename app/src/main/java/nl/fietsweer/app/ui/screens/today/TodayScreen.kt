@@ -11,6 +11,7 @@ import nl.fietsweer.app.data.Settings
 import nl.fietsweer.app.domain.Commute
 import nl.fietsweer.app.domain.Engine
 import nl.fietsweer.app.domain.Jacket
+import nl.fietsweer.app.domain.departureWindow
 import nl.fietsweer.app.ui.components.FillScreen
 import nl.fietsweer.app.ui.components.InfoCard
 import nl.fietsweer.app.ui.components.LoadingBlock

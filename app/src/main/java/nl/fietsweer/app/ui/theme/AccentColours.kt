@@ -25,13 +25,16 @@ fun accentColour(accent: AccentColor, dark: Boolean): Color? = when (accent) {
     AccentColor.INK -> if (dark) Color(0xFFB7B2AA) else Color(0xFF4B463F)
 }
 
-fun swatchColour(accent: AccentColor, dark: Boolean, context: Context): Color = when (accent) {
-    AccentColor.BRAND -> (if (dark) BrandDark else BrandLight).primary
-    AccentColor.WALLPAPER ->
-        if (supportsWallpaperColours) (if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)).primary
-        else (if (dark) BrandDark else BrandLight).primary
-    else -> accentColour(accent, dark)!!
+fun colorSchemeFor(accent: AccentColor, dark: Boolean, context: Context): ColorScheme {
+    if (accent == AccentColor.WALLPAPER && supportsWallpaperColours) {
+        return if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+    }
+    val brand = if (dark) BrandDark else BrandLight
+    return accentColour(accent, dark)?.let { brand.withAccent(it) } ?: brand
 }
+
+fun swatchColour(accent: AccentColor, dark: Boolean, context: Context): Color =
+    colorSchemeFor(accent, dark, context).primary
 
 // The tertiary colour stays the brand's: the charts draw temperature in it.
 fun ColorScheme.withAccent(accent: Color): ColorScheme {

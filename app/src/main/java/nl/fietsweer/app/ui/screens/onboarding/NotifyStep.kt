@@ -15,7 +15,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.NotificationsActive
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -27,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import nl.fietsweer.app.data.Alert
 import nl.fietsweer.app.data.Settings
+import nl.fietsweer.app.ui.components.Caption
 import nl.fietsweer.app.ui.components.CoverageChoice
 import nl.fietsweer.app.ui.components.DayPicker
 import nl.fietsweer.app.ui.components.SectionCard
@@ -91,11 +91,7 @@ internal fun NotifyStep(
                 modifier = Modifier.size(18.dp)
             )
             Spacer(Modifier.width(8.dp))
-            Text(
-                if (granted) strings.notificationsAllowed else strings.permNotificationsBody,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Caption(if (granted) strings.notificationsAllowed else strings.permNotificationsBody)
         }
     }
 

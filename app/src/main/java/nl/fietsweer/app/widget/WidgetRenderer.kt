@@ -20,12 +20,12 @@ import nl.fietsweer.app.data.Settings
 import nl.fietsweer.app.data.WidgetStyle
 import nl.fietsweer.app.domain.AdviceText
 import nl.fietsweer.app.domain.Commute
+import nl.fietsweer.app.domain.DepartureWindow
 import nl.fietsweer.app.domain.Engine
 import nl.fietsweer.app.domain.Formatter
 import nl.fietsweer.app.domain.Jacket
 import nl.fietsweer.app.domain.Strings
-import nl.fietsweer.app.ui.screens.today.DepartureWindow
-import nl.fietsweer.app.ui.screens.today.departureWindow
+import nl.fietsweer.app.domain.departureWindow
 import nl.fietsweer.app.ui.theme.LightAccents
 import nl.fietsweer.app.ui.theme.SystemColors
 import nl.fietsweer.app.widget.WidgetArt.Picture

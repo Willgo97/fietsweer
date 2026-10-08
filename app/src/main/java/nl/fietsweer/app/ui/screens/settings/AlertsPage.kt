@@ -69,7 +69,6 @@ fun AlertsPage(
     onBack: () -> Unit
 ) {
     val strings = AppTheme.strings
-    val format = AppTheme.format
     val accents = AppTheme.accents
     val context = LocalContext.current
 

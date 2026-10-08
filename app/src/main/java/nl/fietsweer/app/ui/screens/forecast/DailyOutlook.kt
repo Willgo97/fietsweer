@@ -1,5 +1,6 @@
 package nl.fietsweer.app.ui.screens.forecast
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -16,7 +17,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.text.style.TextAlign
@@ -130,7 +134,7 @@ internal fun DailyOutlook(forecast: RouteForecast) {
 @Composable
 private fun WeekDivider() {
     val color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-    androidx.compose.foundation.Canvas(
+    Canvas(
         Modifier
             .fillMaxWidth()
             .padding(vertical = 2.dp)
@@ -149,16 +153,16 @@ private fun isSaturday(dayMs: Long): Boolean =
 
 @Composable
 private fun TempBar(startFraction: Float, endFraction: Float, lowColor: Color, highColor: Color) {
-    androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
+    Canvas(Modifier.fillMaxSize()) {
         val left = size.width * startFraction
         val right = (size.width * endFraction).coerceAtLeast(left + size.height)
         drawRoundRect(
-            brush = androidx.compose.ui.graphics.Brush.horizontalGradient(
+            brush = Brush.horizontalGradient(
                 listOf(lowColor, highColor), startX = left, endX = right
             ),
-            topLeft = androidx.compose.ui.geometry.Offset(left, 0f),
-            size = androidx.compose.ui.geometry.Size(right - left, size.height),
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.height / 2)
+            topLeft = Offset(left, 0f),
+            size = Size(right - left, size.height),
+            cornerRadius = CornerRadius(size.height / 2)
         )
     }
 }

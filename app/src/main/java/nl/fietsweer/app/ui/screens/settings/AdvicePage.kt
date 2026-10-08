@@ -70,15 +70,7 @@ internal fun AdvicePage(settings: Settings, onUpdate: ((Settings) -> Settings) -
             range = 8f..26f,
             steps = 0,
             onChange = { vestTemp = it },
-            onChangeFinished = {
-                onUpdate {
-                    val vest = vestTemp.toDouble()
-                    it.copy(
-                        vestBelow = vest,
-                        winterCoatBelow = minOf(it.winterCoatBelow, vest - 2.0)
-                    )
-                }
-            }
+            onChangeFinished = { onUpdate { it.withVestBelow(vestTemp.toDouble()) } }
         )
         Spacer(Modifier.height(10.dp))
         LabeledSlider(
@@ -88,15 +80,7 @@ internal fun AdvicePage(settings: Settings, onUpdate: ((Settings) -> Settings) -
             range = -6f..18f,
             steps = 0,
             onChange = { winterTemp = it },
-            onChangeFinished = {
-                onUpdate {
-                    val winter = winterTemp.toDouble()
-                    it.copy(
-                        winterCoatBelow = winter,
-                        vestBelow = maxOf(it.vestBelow, winter + 2.0)
-                    )
-                }
-            }
+            onChangeFinished = { onUpdate { it.withWinterCoatBelow(winterTemp.toDouble()) } }
         )
         Spacer(Modifier.height(8.dp))
         SoftDivider()

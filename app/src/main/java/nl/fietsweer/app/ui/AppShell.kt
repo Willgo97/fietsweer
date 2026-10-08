@@ -33,7 +33,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -54,6 +53,7 @@ import nl.fietsweer.app.data.Alert
 import nl.fietsweer.app.data.Settings
 import nl.fietsweer.app.domain.Strings
 import nl.fietsweer.app.ui.components.CARD_GAP
+import nl.fietsweer.app.ui.components.CARD_SHAPE
 import nl.fietsweer.app.ui.map.MapTheme
 import nl.fietsweer.app.ui.map.RouteEnd
 import nl.fietsweer.app.ui.map.RouteEndPicker
@@ -72,8 +72,7 @@ import nl.fietsweer.app.ui.theme.isDark
 
 private sealed interface Overlay {
     data object None : Overlay
-    data object PickHome : Overlay
-    data object PickWork : Overlay
+    data class PickRouteEnd(val end: RouteEnd) : Overlay
     data class EditAlert(val alert: Alert, val isNew: Boolean) : Overlay
 }
 
@@ -121,7 +120,7 @@ private fun MainShell(
     val scope = rememberCoroutineScope()
     val snackbar = remember { SnackbarHostState() }
 
-    var selectedTab by rememberSaveable { mutableIntStateOf(0) }
+    var selectedTab by rememberSaveable { mutableStateOf(Tab.TODAY) }
     var overlay by remember { mutableStateOf<Overlay>(Overlay.None) }
     var settingsPage by rememberSaveable { mutableStateOf(SettingsPage.MENU) }
     var nowTick by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -139,18 +138,18 @@ private fun MainShell(
         viewModel.rescheduleAlarms()
     }
 
-    val settingsTab = Tab.SETTINGS.ordinal
-    val inSubPage = selectedTab == settingsTab && settingsPage != SettingsPage.MENU
+    val refreshNow = { viewModel.refresh(force = true) }
+    val inSubPage = selectedTab == Tab.SETTINGS && settingsPage != SettingsPage.MENU
     BackHandler(enabled = overlay != Overlay.None) { overlay = Overlay.None }
     BackHandler(enabled = overlay == Overlay.None && inSubPage) { settingsPage = SettingsPage.MENU }
-    BackHandler(enabled = overlay == Overlay.None && !inSubPage && selectedTab != 0) { selectedTab = 0 }
+    BackHandler(enabled = overlay == Overlay.None && !inSubPage && selectedTab != Tab.TODAY) { selectedTab = Tab.TODAY }
 
     Box(Modifier.fillMaxSize()) {
         Scaffold(
             bottomBar = {
-                TabBar(selectedTab) { index ->
-                    if (index == settingsTab && selectedTab == settingsTab) settingsPage = SettingsPage.MENU
-                    selectedTab = index
+                TabBar(selectedTab) { tab ->
+                    if (tab == Tab.SETTINGS && selectedTab == Tab.SETTINGS) settingsPage = SettingsPage.MENU
+                    selectedTab = tab
                 }
             },
             snackbarHost = { SnackbarHost(snackbar) }
@@ -158,39 +157,39 @@ private fun MainShell(
             AnimatedContent(
                 targetState = selectedTab,
                 transitionSpec = {
-                    val forward = targetState > initialState
+                    val forward = targetState.ordinal > initialState.ordinal
                     (slideInHorizontally { if (forward) it / 8 else -it / 8 } + fadeIn()) togetherWith
                         (slideOutHorizontally { if (forward) -it / 12 else it / 12 } + fadeOut())
                 },
                 label = "tabs"
             ) { tab ->
                 when (tab) {
-                    0 -> TodayScreen(
+                    Tab.TODAY -> TodayScreen(
                         settings = settings,
                         forecastState = forecastState,
                         nowTick = nowTick,
                         contentPadding = innerPadding,
-                        onRefresh = { viewModel.refresh(force = true) },
-                        onSetup = { viewModel.update { it.copy(setupDone = false) } }
+                        onRefresh = refreshNow,
+                        onSetup = viewModel::restartSetup
                     )
 
-                    1 -> ForecastScreen(
+                    Tab.FORECAST -> ForecastScreen(
                         settings = settings,
                         forecastState = forecastState,
                         contentPadding = innerPadding,
-                        onRefresh = { viewModel.refresh(force = true) },
-                        onSetup = { viewModel.update { it.copy(setupDone = false) } },
+                        onRefresh = refreshNow,
+                        onSetup = viewModel::restartSetup,
                         onAskedLocation = { viewModel.update { it.copy(askedLocation = true) } }
                     )
 
-                    2 -> MapScreen(
+                    Tab.MAP -> MapScreen(
                         settings = settings,
                         contentPadding = innerPadding,
                         mapTheme = mapTheme,
-                        onSetup = { viewModel.update { it.copy(setupDone = false) } }
+                        onSetup = viewModel::restartSetup
                     )
 
-                    else -> if (settingsPage == SettingsPage.ALERTS) AlertsPage(
+                    Tab.SETTINGS -> if (settingsPage == SettingsPage.ALERTS) AlertsPage(
                         settings = settings,
                         contentPadding = innerPadding,
                         onEdit = { overlay = Overlay.EditAlert(it, false) },
@@ -213,9 +212,9 @@ private fun MainShell(
                         mapTheme = mapTheme,
                         contentPadding = innerPadding,
                         onUpdate = { viewModel.update(it) },
-                        onPickHome = { overlay = Overlay.PickHome },
-                        onPickWork = { overlay = Overlay.PickWork },
-                        onResetSetup = { viewModel.update { it.copy(setupDone = false) } }
+                        onPickHome = { overlay = Overlay.PickRouteEnd(RouteEnd.HOME) },
+                        onPickWork = { overlay = Overlay.PickRouteEnd(RouteEnd.WORK) },
+                        onResetSetup = viewModel::restartSetup
                     )
                 }
             }
@@ -224,26 +223,14 @@ private fun MainShell(
         when (val current = overlay) {
             Overlay.None -> Unit
 
-            Overlay.PickHome -> RouteEndPicker(
-                end = RouteEnd.HOME,
-                title = strings.home,
+            is Overlay.PickRouteEnd -> RouteEndPicker(
+                end = current.end,
+                title = if (current.end == RouteEnd.HOME) strings.home else strings.work,
                 settings = settings,
                 mapTheme = mapTheme,
                 onCancel = { overlay = Overlay.None },
                 onConfirm = { place ->
-                    viewModel.update { it.copy(home = place) }
-                    overlay = Overlay.None
-                }
-            )
-
-            Overlay.PickWork -> RouteEndPicker(
-                end = RouteEnd.WORK,
-                title = strings.work,
-                settings = settings,
-                mapTheme = mapTheme,
-                onCancel = { overlay = Overlay.None },
-                onConfirm = { place ->
-                    viewModel.update { it.copy(work = place) }
+                    viewModel.update { if (current.end == RouteEnd.HOME) it.copy(home = place) else it.copy(work = place) }
                     overlay = Overlay.None
                 }
             )
@@ -265,15 +252,15 @@ private suspend fun SnackbarHostState.showMessage(text: String) {
 }
 
 @Composable
-private fun TabBar(selected: Int, onSelect: (Int) -> Unit) {
+private fun TabBar(selected: Tab, onSelect: (Tab) -> Unit) {
     val strings = AppTheme.strings
     Card(
         modifier = Modifier
             .background(MaterialTheme.colorScheme.background)
             .navigationBarsPadding()
-            .padding(start = CARD_GAP, end = CARD_GAP, top = CARD_GAP, bottom = CARD_GAP)
+            .padding(CARD_GAP)
             .fillMaxWidth(),
-        shape = RoundedCornerShape(22.dp),
+        shape = CARD_SHAPE,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
     ) {
         Row(
@@ -282,13 +269,13 @@ private fun TabBar(selected: Int, onSelect: (Int) -> Unit) {
                 .padding(8.dp),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            Tab.entries.forEachIndexed { index, tab ->
-                val active = index == selected
+            Tab.entries.forEach { tab ->
+                val active = tab == selected
                 Box(
                     Modifier
                         .clip(RoundedCornerShape(16.dp))
                         .background(if (active) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent)
-                        .clickable { onSelect(index) }
+                        .clickable { onSelect(tab) }
                         .padding(horizontal = 22.dp, vertical = 10.dp),
                     contentAlignment = Alignment.Center
                 ) {

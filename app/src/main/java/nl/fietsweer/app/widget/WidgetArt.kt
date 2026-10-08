@@ -18,8 +18,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.VectorGroup
 import androidx.compose.ui.graphics.vector.VectorPath
 import androidx.compose.ui.graphics.vector.toPath
+import nl.fietsweer.app.domain.DepartureWindow
 import nl.fietsweer.app.ui.components.charts.rainIntensity
-import nl.fietsweer.app.ui.screens.today.DepartureWindow
 import nl.fietsweer.app.ui.theme.BrandDark
 import nl.fietsweer.app.ui.theme.BrandLight
 import nl.fietsweer.app.ui.theme.DarkAccents

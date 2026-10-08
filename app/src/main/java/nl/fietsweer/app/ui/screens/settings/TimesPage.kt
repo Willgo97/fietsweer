@@ -110,12 +110,7 @@ private fun FlexEditor(
         range = 0f..MAX_SLACK_MINUTES.toFloat(),
         steps = 11,
         onChange = { earlyMinutes = it },
-        onChangeFinished = {
-            val minutes = earlyMinutes.roundToInt()
-            onUpdate {
-                if (leg == Leg.OUTBOUND) it.copy(outboundEarlyMinutes = minutes) else it.copy(returnEarlyMinutes = minutes)
-            }
-        }
+        onChangeFinished = { onUpdate { it.withEarlyMinutes(leg, earlyMinutes.roundToInt()) } }
     )
     LabeledSlider(
         label = strings.flexLater,
@@ -124,12 +119,7 @@ private fun FlexEditor(
         range = 0f..MAX_SLACK_MINUTES.toFloat(),
         steps = 11,
         onChange = { lateMinutes = it },
-        onChangeFinished = {
-            val minutes = lateMinutes.roundToInt()
-            onUpdate {
-                if (leg == Leg.OUTBOUND) it.copy(outboundLateMinutes = minutes) else it.copy(returnLateMinutes = minutes)
-            }
-        }
+        onChangeFinished = { onUpdate { it.withLateMinutes(leg, lateMinutes.roundToInt()) } }
     )
 }
 

@@ -13,7 +13,6 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 // For cycling anything from 30 km/h is hard work, so the heads step up early.
@@ -45,9 +44,9 @@ fun DrawScope.drawWindArrow(centre: Offset, fromDegrees: Double, kmh: Double, co
 }
 
 @Composable
-fun WindArrow(fromDegrees: Double, kmh: Double, size: Dp = 14.dp) {
+fun WindArrow(fromDegrees: Double, kmh: Double) {
     val color = MaterialTheme.colorScheme.onSurfaceVariant
-    Canvas(Modifier.size(size)) {
-        drawWindArrow(center, fromDegrees, kmh, color, this.size.minDimension * 0.9f)
+    Canvas(Modifier.size(14.dp)) {
+        drawWindArrow(center, fromDegrees, kmh, color, size.minDimension * 0.9f)
     }
 }

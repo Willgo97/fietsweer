@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import kotlinx.coroutines.launch
+import nl.fietsweer.app.domain.ChartSeries
 import nl.fietsweer.app.domain.Timeline
 import nl.fietsweer.app.ui.components.Caption
 import nl.fietsweer.app.ui.theme.AppTheme
@@ -58,14 +59,6 @@ import kotlin.math.abs
 import kotlin.math.ln
 import kotlin.math.max
 import kotlin.math.roundToInt
-
-class ChartSeries(
-    val startMs: Long,
-    val endMs: Long,
-    val times: LongArray,
-    val rainMmPerHour: DoubleArray,
-    val temperatureC: DoubleArray
-)
 
 class ChartMarker(val timeMs: Long, val text: String, val color: Color)
 

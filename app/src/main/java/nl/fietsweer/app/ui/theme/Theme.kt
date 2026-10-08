@@ -1,11 +1,8 @@
 package nl.fietsweer.app.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ProvidableCompositionLocal
@@ -79,13 +76,7 @@ fun FietsweerTheme(
     content: @Composable () -> Unit
 ) {
     val dark = themeMode.isDark()
-    val context = LocalContext.current
-    val brand = if (dark) BrandDark else BrandLight
-    val scheme: ColorScheme = when {
-        accent == AccentColor.WALLPAPER && supportsWallpaperColours ->
-            if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        else -> accentColour(accent, dark)?.let { brand.withAccent(it) } ?: brand
-    }
+    val scheme = colorSchemeFor(accent, dark, LocalContext.current)
     val accents = if (dark) DarkAccents else LightAccents
     val format = remember(strings) { Formatter(strings) }
 

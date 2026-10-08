@@ -41,25 +41,19 @@ fun SectionCard(
     subtitle: String? = null,
     contentPadding: Int = 16,
     verticalPadding: Int = contentPadding,
-    border: BorderStroke? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(22.dp),
+        shape = CARD_SHAPE,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border = border
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(Modifier.padding(horizontal = contentPadding.dp, vertical = verticalPadding.dp)) {
             if (title != null) {
                 SectionLabel(title)
                 if (subtitle != null) {
-                    Text(
-                        subtitle,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Caption(subtitle)
                 }
                 Spacer(Modifier.height(12.dp))
             }
@@ -97,11 +91,7 @@ fun InfoCard(
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.onSurface
                 )
-                Text(
-                    body,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Caption(body)
             }
             if (actionLabel != null && onAction != null) {
                 Spacer(Modifier.width(10.dp))
@@ -124,9 +114,9 @@ fun NoForecastCard(forecast: RouteForecast, onRetry: () -> Unit) {
 }
 
 @Composable
-fun LoadingBlock(text: String, modifier: Modifier = Modifier) {
+fun LoadingBlock(text: String) {
     Column(
-        modifier
+        Modifier
             .fillMaxWidth()
             .padding(vertical = 48.dp),
         horizontalAlignment = Alignment.CenterHorizontally

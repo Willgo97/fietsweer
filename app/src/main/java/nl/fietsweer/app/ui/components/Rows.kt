@@ -46,11 +46,7 @@ private fun SettingRow(
         Column(Modifier.weight(1f)) {
             Text(title, style = MaterialTheme.typography.bodyLarge)
             if (subtitle != null) {
-                Text(
-                    subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Caption(subtitle)
             }
         }
         if (trailing != null) {
@@ -61,7 +57,7 @@ private fun SettingRow(
 }
 
 @Composable
-fun NavigationRow(title: String, icon: ImageVector, subtitle: String? = null, onClick: () -> Unit) {
+fun NavigationRow(title: String, icon: ImageVector, subtitle: String, onClick: () -> Unit) {
     SettingRow(
         title = title,
         subtitle = subtitle,

@@ -32,7 +32,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import nl.fietsweer.app.data.RouteForecast
 import nl.fietsweer.app.data.Settings
-import nl.fietsweer.app.data.ThemeMode
 import nl.fietsweer.app.ui.components.CARD_GAP
 import nl.fietsweer.app.ui.components.ScreenList
 import nl.fietsweer.app.ui.components.SectionCard
@@ -57,8 +56,6 @@ fun SettingsScreen(
     onPickWork: () -> Unit,
     onResetSetup: () -> Unit
 ) {
-    val strings = AppTheme.strings
-
     if (page == SettingsPage.MENU) {
         SettingsMenu(settings, versionName, contentPadding, onPage)
         return
@@ -125,7 +122,7 @@ private fun SettingsMenu(
             MenuEntry(SettingsPage.WIDGET, Icons.Rounded.Widgets, null)
         ),
         strings.groupApp to listOf(
-            MenuEntry(SettingsPage.LOOK, Icons.Rounded.Palette, "${themeName(settings)} · ${strings.accentName(settings.accent)}"),
+            MenuEntry(SettingsPage.LOOK, Icons.Rounded.Palette, "${strings.themeName(settings.theme)} · ${strings.accentName(settings.accent)}"),
             MenuEntry(SettingsPage.ABOUT, Icons.Rounded.Info, strings.version(versionName))
         )
     )
@@ -179,19 +176,9 @@ private fun MenuRow(title: String, icon: ImageVector, summary: String?, modifier
     }
 }
 
-@Composable
 private fun routeSummary(settings: Settings): String? {
     val home = settings.home ?: return null
     val work = settings.work ?: return null
     return "${home.name} → ${work.name}"
 }
 
-@Composable
-private fun themeName(settings: Settings): String {
-    val strings = AppTheme.strings
-    return when (settings.theme) {
-        ThemeMode.SYSTEM -> strings.themeSystem
-        ThemeMode.LIGHT -> strings.themeLight
-        ThemeMode.DARK -> strings.themeDark
-    }
-}

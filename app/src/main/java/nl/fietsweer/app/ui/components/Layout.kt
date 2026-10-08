@@ -11,9 +11,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.Layout
@@ -23,6 +22,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 val CARD_GAP = 5.dp
+val CARD_SHAPE = RoundedCornerShape(22.dp)
 
 @Composable
 fun ScreenList(contentPadding: PaddingValues, content: LazyListScope.() -> Unit) {
@@ -40,18 +40,13 @@ fun ScreenList(contentPadding: PaddingValues, content: LazyListScope.() -> Unit)
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun ChipFlow(
-    modifier: Modifier = Modifier,
-    content: @Composable FlowRowScope.() -> Unit
-) {
+fun ChipFlow(content: @Composable FlowRowScope.() -> Unit) {
     FlowRow(
-        modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
         content = content
     )
 }
-
 
 // One screen, no scrolling: the child at stretchIndex takes whatever height is left,
 // and the column only scrolls when even its minimum does not fit.

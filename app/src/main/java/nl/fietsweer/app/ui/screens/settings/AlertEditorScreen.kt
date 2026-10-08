@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import nl.fietsweer.app.data.Alert
 import nl.fietsweer.app.notify.AlertScheduler
 import nl.fietsweer.app.ui.components.ButtonLabel
+import nl.fietsweer.app.ui.components.Caption
 import nl.fietsweer.app.ui.components.CoverageChoice
 import nl.fietsweer.app.ui.components.DayPicker
 import nl.fietsweer.app.ui.components.SectionCard
@@ -108,11 +109,9 @@ fun AlertEditorScreen(
                     QuickDays(strings.everyDay) { draft = draft.copy(days = (1..7).toSet()) }
                 }
                 Spacer(Modifier.height(10.dp))
-                Text(
+                Caption(
                     AlertScheduler.nextTrigger(draft.copy(enabled = true))
-                        ?.let { strings.nextFire(format.dayTime(it)) } ?: strings.neverRepeats,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                        ?.let { strings.nextFire(format.dayTime(it)) } ?: strings.neverRepeats
                 )
             }
 

@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.DirectionsBike
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -104,7 +105,7 @@ internal fun WelcomeStep(onStart: () -> Unit) {
                 onClick = onStart,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(18.dp),
-                colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                colors = ButtonDefaults.buttonColors(
                     containerColor = Color.White,
                     contentColor = MaterialTheme.colorScheme.primary
                 )

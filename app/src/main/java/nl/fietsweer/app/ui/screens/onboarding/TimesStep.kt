@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import nl.fietsweer.app.data.Leg
 import nl.fietsweer.app.data.Settings
+import nl.fietsweer.app.ui.components.Caption
 import nl.fietsweer.app.ui.components.CyclingSpeedSlider
 import nl.fietsweer.app.ui.components.RideTimeDialog
 import nl.fietsweer.app.ui.components.SectionCard
@@ -68,11 +69,7 @@ private fun RideTimeRow(label: String, placeName: String?, hour: Int, minute: In
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             Text(label, style = MaterialTheme.typography.bodyMedium)
-            Text(
-                placeName ?: "",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Caption(placeName ?: "")
         }
         TimeChip(hour, minute, onClick = onClick)
     }

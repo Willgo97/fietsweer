@@ -104,11 +104,10 @@ fun CoverageChoice(selected: Coverage, onSelect: (Coverage) -> Unit) {
 @Composable
 fun DayPicker(
     days: Set<Int>,
-    onChange: (Set<Int>) -> Unit,
-    modifier: Modifier = Modifier
+    onChange: (Set<Int>) -> Unit
 ) {
     val letters = AppTheme.strings.dayLettersShort
-    Row(modifier, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         for (day in 1..7) {
             val active = day in days
             val backgroundColor by animateColorAsState(
@@ -189,11 +188,10 @@ fun RideTimeDialog(
 fun TimeChip(
     hour: Int,
     minute: Int,
-    modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
     Surface(
-        modifier = modifier.clickable(onClick = onClick),
+        modifier = Modifier.clickable(onClick = onClick),
         shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.primaryContainer
     ) {
@@ -214,7 +212,7 @@ fun LabeledSlider(
     range: ClosedFloatingPointRange<Float>,
     steps: Int,
     onChange: (Float) -> Unit,
-    onChangeFinished: () -> Unit = {}
+    onChangeFinished: () -> Unit
 ) {
     Column(Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -258,11 +256,7 @@ fun CyclingSpeedSlider(settings: Settings, onUpdate: ((Settings) -> Settings) ->
         onChange = { speed = it },
         onChangeFinished = { onUpdate { it.copy(speedKmh = speed.roundToInt()) } }
     )
-    Text(
-        format.speedWithUnit(speed.toDouble()),
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
-    )
+    Caption(format.speedWithUnit(speed.toDouble()))
 }
 
 @Composable

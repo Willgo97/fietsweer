@@ -50,11 +50,7 @@ internal fun LookPage(settings: Settings, onUpdate: ((Settings) -> Settings) -> 
         ChoiceGroup(
             icon = Icons.Rounded.DarkMode,
             title = strings.theme,
-            options = listOf(
-                ThemeMode.SYSTEM to strings.themeSystem,
-                ThemeMode.LIGHT to strings.themeLight,
-                ThemeMode.DARK to strings.themeDark
-            ),
+            options = ThemeMode.entries.map { it to strings.themeName(it) },
             selected = settings.theme,
             onSelect = { choice -> onUpdate { it.copy(theme = choice) } }
         )

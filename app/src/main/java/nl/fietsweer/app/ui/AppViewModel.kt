@@ -11,8 +11,6 @@ import nl.fietsweer.app.data.ForecastRepository
 import nl.fietsweer.app.data.ForecastState
 import nl.fietsweer.app.data.Settings
 import nl.fietsweer.app.data.SettingsStore
-import nl.fietsweer.app.domain.Commute
-import nl.fietsweer.app.domain.Engine
 import nl.fietsweer.app.domain.Jacket
 import nl.fietsweer.app.domain.Strings
 import nl.fietsweer.app.notify.AlertScheduler
@@ -55,6 +53,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun restartSetup() = update { it.copy(setupDone = false) }
+
     fun saveAlert(alert: Alert) = update { it.withAlert(alert) }
 
     fun deleteAlert(alertId: String) = update { settings ->
@@ -72,9 +72,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 onDone(false)
                 return@launch
             }
-            val engine = Engine(forecast, settings)
-            val rides = Commute.plannedRides(settings, Coverage.BOTH).map(engine::assess)
-            Notifier.postAdvice(getApplication(), null, Jacket.forNextDay(rides, settings), strings)
+            Notifier.postAdvice(getApplication(), null, Jacket.forCommute(forecast, settings, Coverage.BOTH), strings)
             onDone(true)
         }
     }

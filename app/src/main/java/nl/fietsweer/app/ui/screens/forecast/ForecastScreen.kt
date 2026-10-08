@@ -41,8 +41,10 @@ import nl.fietsweer.app.data.Leg
 import nl.fietsweer.app.data.LocalForecast
 import nl.fietsweer.app.data.RouteForecast
 import nl.fietsweer.app.data.Settings
+import nl.fietsweer.app.domain.ChartSeries
 import nl.fietsweer.app.domain.Commute
 import nl.fietsweer.app.domain.Engine
+import nl.fietsweer.app.domain.HOUR_MS
 import nl.fietsweer.app.domain.Timeline
 import nl.fietsweer.app.ui.components.FillScreen
 import nl.fietsweer.app.ui.components.InfoCard
@@ -51,7 +53,6 @@ import nl.fietsweer.app.ui.components.NoForecastCard
 import nl.fietsweer.app.ui.components.NoRouteState
 import nl.fietsweer.app.ui.components.ScreenList
 import nl.fietsweer.app.ui.components.SectionCard
-import nl.fietsweer.app.ui.components.charts.ChartSeries
 import nl.fietsweer.app.ui.components.charts.TimeChart
 import nl.fietsweer.app.ui.components.charts.drawWindArrow
 import nl.fietsweer.app.ui.theme.AppTheme
@@ -59,7 +60,6 @@ import nl.fietsweer.app.ui.theme.caption
 import java.time.Instant
 import java.time.ZoneId
 
-private const val HOUR_MS = 60 * 60_000L
 private const val SPAN_MS = 48 * HOUR_MS
 private const val VISIBLE_MS = 8 * HOUR_MS
 private const val AXIS_STEP_MS = 2 * HOUR_MS
@@ -129,8 +129,7 @@ fun ForecastScreen(
 }
 
 private fun outlookFor(forecast: RouteForecast, settings: Settings, place: String?): Outlook {
-    val stepMs = Timeline.STEP_MINUTES * 60_000L
-    val startMs = (System.currentTimeMillis() / stepMs) * stepMs
+    val startMs = (System.currentTimeMillis() / Timeline.STEP_MS) * Timeline.STEP_MS
     val endMs = startMs + SPAN_MS
     val times = Timeline.times(startMs, endMs)
     val engine = Engine(forecast, settings)
@@ -138,25 +137,10 @@ private fun outlookFor(forecast: RouteForecast, settings: Settings, place: Strin
     return Outlook(
         ChartSeries(startMs, endMs, times, Timeline.rainRate(forecast, times), Timeline.temperature(forecast, times)),
         planned.map { RideBand(it.leg, it.departureMs, engine.assess(it.departureMs, it.leg).arrivalMs) },
-        nightsBetween(forecast, startMs, endMs),
+        Timeline.nights(forecast, startMs, endMs),
         windBetween(forecast, startMs, endMs),
         place
     )
-}
-
-// Open-Meteo sends sunrise and sunset as unix seconds.
-private fun nightsBetween(forecast: RouteForecast, startMs: Long, endMs: Long): List<Pair<Long, Long>> {
-    val sunrises = forecast.daily["sunrise"]?.map { (it * 1000).toLong() }.orEmpty()
-    val sunsets = forecast.daily["sunset"]?.map { (it * 1000).toLong() }.orEmpty()
-    val edges = (sunsets.map { it to true } + sunrises.map { it to false }).sortedBy { it.first }
-    val nights = ArrayList<Pair<Long, Long>>()
-    var nightStart: Long? = if (edges.firstOrNull()?.second == false) startMs else null
-    for ((timeMs, isSunset) in edges) {
-        if (isSunset) nightStart = timeMs
-        else nightStart?.let { nights += it to timeMs; nightStart = null }
-    }
-    nightStart?.let { nights += it to endMs }
-    return nights.filter { it.second > startMs && it.first < endMs }
 }
 
 private fun windBetween(forecast: RouteForecast, startMs: Long, endMs: Long): List<WindSample> {
