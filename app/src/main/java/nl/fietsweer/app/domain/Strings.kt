@@ -99,6 +99,7 @@ open class Strings {
     open val chipDark = "Lights on"
 
     open val rightNow = "Right now"
+    open val neededOn = { day: String -> "Needed $day" }
     open val feelsLike = "feels like"
     open val onTheBike = "on the bike"
     open val chanceOfRainShort = "rain"
@@ -162,6 +163,9 @@ open class Strings {
     open val widgetAdd = "Add the widget"
     open val widgetRowTitle = "One row"
     open val widgetRowSub = "Tap a style; the 4×1 widget uses it"
+    open val nowWidgetTitle = "Weather now, 4×1"
+    open val nowWidgetSub = "Temperature, feel and wind of the moment, in the colours of the weather"
+    open val nowWidgetAdd = "Add weather now"
     open val widgetBiggerTitle = "Bigger and smaller"
     open val widgetBiggerSub = "Drag the widget taller for the chart and both rides, narrower for just the advice"
     open val settingsAbout = "About"
@@ -343,6 +347,7 @@ object DutchStrings : Strings() {
     override val chipDark = "Licht aan"
 
     override val rightNow = "Nu"
+    override val neededOn = { day: String -> "$day nodig" }
     override val feelsLike = "voelt als"
     override val onTheBike = "op de fiets"
     override val chanceOfRainShort = "regen"
@@ -406,6 +411,9 @@ object DutchStrings : Strings() {
     override val widgetAdd = "Widget toevoegen"
     override val widgetRowTitle = "Eén rij"
     override val widgetRowSub = "Tik een stijl aan; de 4×1-widget gebruikt die"
+    override val nowWidgetTitle = "Weer nu, 4×1"
+    override val nowWidgetSub = "Temperatuur, gevoel en wind van dit moment, in de kleuren van het weer"
+    override val nowWidgetAdd = "Weer nu toevoegen"
     override val widgetBiggerTitle = "Groter en kleiner"
     override val widgetBiggerSub = "Sleep de widget hoger voor de grafiek en beide ritten, smaller voor alleen het advies"
     override val settingsAbout = "Over"

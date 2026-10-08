@@ -6,15 +6,13 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.TextAutoSize
@@ -40,6 +38,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.LayoutCoordinates
@@ -48,113 +47,148 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import nl.fietsweer.app.domain.Advice
-import nl.fietsweer.app.domain.AdviceChip
 import nl.fietsweer.app.domain.AdviceText
 import nl.fietsweer.app.domain.ChipKind
-import nl.fietsweer.app.domain.Layer
-import nl.fietsweer.app.domain.Need
-import nl.fietsweer.app.ui.components.ChipFlow
+import nl.fietsweer.app.domain.SkyLight
 import nl.fietsweer.app.ui.components.SectionLabel
 import nl.fietsweer.app.ui.components.WeatherBackdrop
 import nl.fietsweer.app.ui.components.WeatherEffect
+import nl.fietsweer.app.ui.components.weatherGradient
 import nl.fietsweer.app.ui.theme.AppTheme
 
+private const val PANEL_CORNER_DP = 18
+
+// White on a light cloud needs a little help: a soft shadow under the text.
+private val textShadow = Shadow(Color.Black.copy(alpha = 0.28f), Offset(0f, 2f), blurRadius = 8f)
+
+// The whole card is the weather of this moment; the panel on top says what to wear on the next rides.
 @Composable
-internal fun HeroCard(advice: Advice, current: Map<String, Double>) {
-    val strings = AppTheme.strings
-    val accents = AppTheme.accents
-
-    val (gradientStart, gradientEnd) = when {
-        advice.rain == Need.YES && advice.layer == Layer.WINTER -> accents.rain to accents.heat
-        advice.rain == Need.YES -> accents.rain to accents.cold
-        advice.layer == Layer.WINTER -> accents.heat to accents.warm
-        advice.layer == Layer.VEST -> accents.warm to accents.uncertain
-        advice.anythingNeeded -> accents.uncertain to accents.warm
-        else -> accents.dry to accents.mostlyDry
-    }
-
-    // Try-out: a long press steps through every effect so each can be judged.
+internal fun HeroCard(advice: Advice, current: Map<String, Double>, sky: SkyLight) {
+    // Try-out: a long press steps through every effect, a double tap through day, dusk and night.
     var preview by remember { mutableStateOf<WeatherEffect?>(null) }
+    var previewSky by remember { mutableStateOf<Pair<String, SkyLight>?>(null) }
     val effect = preview ?: WeatherEffect.forCurrent(current)
+    val shownSky = previewSky?.second ?: sky
+    val (gradientStart, gradientEnd) = AppTheme.accents.weatherGradient(effect, shownSky)
+
     var cardCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
-    var stripCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
-    val stripBounds = cardCoordinates?.let { card ->
-        stripCoordinates?.takeIf { it.isAttached }?.let { card.localBoundingBoxOf(it) }
+    var panelCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
+    val panelBounds = cardCoordinates?.let { card ->
+        panelCoordinates?.takeIf { it.isAttached }?.let { card.localBoundingBoxOf(it) }
     }
 
-    Surface(
-        Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(26.dp),
-        color = Color.Transparent
-    ) {
-        Box(
-            Modifier
-                .clip(RoundedCornerShape(26.dp))
-                .background(Brush.linearGradient(listOf(gradientStart, gradientEnd)))
-                .onGloballyPositioned { cardCoordinates = it }
-                .pointerInput(Unit) {
-                    detectTapGestures(onLongPress = {
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(26.dp))
+            .background(Brush.linearGradient(listOf(gradientStart, gradientEnd)))
+            .onGloballyPositioned { cardCoordinates = it }
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onLongPress = {
                         val entries = WeatherEffect.entries
                         preview = entries[((preview?.ordinal ?: -1) + 1) % entries.size]
-                    })
-                }
-        ) {
-            Canvas(Modifier.fillMaxSize()) {
-                drawCircle(
-                    Color.White.copy(alpha = 0.09f),
-                    radius = size.height * 0.85f,
-                    center = Offset(size.width * 1.02f, size.height * 0.12f)
-                )
-                drawCircle(
-                    Color.White.copy(alpha = 0.07f),
-                    radius = size.height * 0.5f,
-                    center = Offset(size.width * 0.86f, size.height * 0.92f)
+                    },
+                    onDoubleTap = {
+                        val skies = listOf("day" to SkyLight.DAY, "dusk" to SkyLight.DUSK, "night" to SkyLight.NIGHT, null)
+                        previewSky = skies[(skies.indexOf(previewSky) + 1) % skies.size]
+                    }
                 )
             }
-            WeatherBackdrop(effect, cutout = stripBounds)
-            preview?.let {
+    ) {
+        WeatherBackdrop(effect, shownSky, cutout = panelBounds, cutoutCornerDp = PANEL_CORNER_DP)
+        // A soft shade behind the 'right now' text, fading out towards the open sky on the right.
+        Canvas(Modifier.matchParentSize()) {
+            drawRect(
+                Brush.radialGradient(
+                    listOf(Color.Black.copy(alpha = 0.22f), Color.Transparent),
+                    center = Offset(size.width * 0.18f, 56.dp.toPx()),
+                    radius = size.width * 0.55f
+                )
+            )
+        }
+        Column(Modifier.padding(20.dp)) {
+            if (hasCurrentConditions(current)) {
+                NowLine(current)
+                Spacer(Modifier.size(18.dp))
+            }
+            ClothingPanel(advice, Modifier.onGloballyPositioned { panelCoordinates = it })
+        }
+        listOfNotNull(preview?.name?.lowercase()?.replace('_', ' '), previewSky?.first).takeIf { it.isNotEmpty() }?.let {
+            Text(
+                it.joinToString(" · "),
+                style = MaterialTheme.typography.labelSmall,
+                color = Color.White.copy(alpha = 0.7f),
+                modifier = Modifier.align(Alignment.BottomEnd).padding(end = 14.dp, bottom = 4.dp)
+            )
+        }
+    }
+}
+
+private fun hasCurrentConditions(current: Map<String, Double>): Boolean =
+    current["temperature_2m"] != null || current["wind_speed_10m"] != null
+
+@Composable
+private fun NowLine(current: Map<String, Double>) {
+    val strings = AppTheme.strings
+    val format = AppTheme.format
+    val apparent = current["apparent_temperature"]
+    val windAndRain = format.windAndRain(current)
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            format.temp(current["temperature_2m"] ?: Double.NaN),
+            style = MaterialTheme.typography.displaySmall.copy(shadow = textShadow),
+            color = Color.White
+        )
+        Spacer(Modifier.width(16.dp))
+        Column {
+            SectionLabel(strings.rightNow, color = Color.White.copy(alpha = 0.85f))
+            if (apparent != null) {
                 Text(
-                    it.name.lowercase().replace('_', ' '),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color.White.copy(alpha = 0.7f),
-                    modifier = Modifier.align(Alignment.BottomEnd).padding(end = 14.dp, bottom = 6.dp)
+                    "${strings.feelsLike} ${format.temp(apparent)}",
+                    style = MaterialTheme.typography.bodyLarge.copy(shadow = textShadow),
+                    color = Color.White
                 )
             }
-            Column(Modifier.padding(20.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        if (advice.anythingNeeded) Icons.Rounded.Checkroom else Icons.AutoMirrored.Rounded.DirectionsBike,
-                        null,
-                        tint = Color.White,
-                        modifier = Modifier.size(30.dp)
-                    )
-                    Spacer(Modifier.width(10.dp))
-                    Text(
-                        AdviceText.headline(advice, strings),
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = Color.White,
-                        maxLines = 1,
-                        autoSize = TextAutoSize.StepBased(
-                            minFontSize = 14.sp,
-                            maxFontSize = MaterialTheme.typography.headlineMedium.fontSize
-                        )
-                    )
+            if (windAndRain.isNotEmpty()) {
+                Text(
+                    windAndRain,
+                    style = MaterialTheme.typography.bodyMedium.copy(shadow = textShadow),
+                    color = Color.White.copy(alpha = 0.9f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ClothingPanel(advice: Advice, modifier: Modifier) {
+    val strings = AppTheme.strings
+    val format = AppTheme.format
+    val firstRide = advice.rides.minByOrNull { it.departureMs } ?: return
+    val chips = AdviceText.chips(advice, strings)
+    Surface(
+        modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(PANEL_CORNER_DP.dp),
+        color = Color.White.copy(alpha = 0.18f)
+    ) {
+        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            SectionLabel(
+                strings.neededOn(format.dayWord(firstRide.departureMs)),
+                color = Color.White.copy(alpha = 0.85f),
+                modifier = Modifier.widthIn(max = 72.dp)
+            )
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (chips.isEmpty()) {
+                    HeroChip(strings.adviceNone, strong = false, icon = Icons.AutoMirrored.Rounded.DirectionsBike)
                 }
-                if (!advice.anythingNeeded && advice.temperatureKnown) {
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        strings.adviceNoneSub,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.White.copy(alpha = 0.9f)
-                    )
-                }
-                val chips = AdviceText.chips(advice, strings)
-                if (hasCurrentConditions(current)) {
-                    Spacer(Modifier.height(14.dp))
-                    NowStrip(current, Modifier.onGloballyPositioned { stripCoordinates = it }) { HeroChips(chips) }
-                } else if (chips.isNotEmpty()) {
-                    Spacer(Modifier.height(14.dp))
-                    ChipFlow { HeroChips(chips) }
+                // Two per row: rain jacket and coat side by side, the extras below.
+                for (row in chips.chunked(2)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        row.forEach { HeroChip(it.label, it.strong, iconFor(it.kind), Modifier.weight(1f)) }
+                        if (row.size == 1) Spacer(Modifier.weight(1f))
+                    }
                 }
             }
         }
@@ -162,18 +196,14 @@ internal fun HeroCard(advice: Advice, current: Map<String, Double>) {
 }
 
 @Composable
-private fun HeroChips(chips: List<AdviceChip>) {
-    chips.forEach { HeroChip(it.label, it.strong, iconFor(it.kind)) }
-}
-
-@Composable
-private fun HeroChip(label: String, strong: Boolean, icon: ImageVector?) {
+private fun HeroChip(label: String, strong: Boolean, icon: ImageVector?, modifier: Modifier = Modifier) {
     Surface(
+        modifier,
         shape = CircleShape,
         color = if (strong) Color.White else Color.White.copy(alpha = 0.22f)
     ) {
         Row(
-            Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+            Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             val contentColor = if (strong) AppTheme.accents.heroInk else Color.White
@@ -185,7 +215,12 @@ private fun HeroChip(label: String, strong: Boolean, icon: ImageVector?) {
                 label,
                 style = MaterialTheme.typography.labelLarge,
                 color = contentColor,
-                fontWeight = if (strong) FontWeight.Bold else FontWeight.Medium
+                fontWeight = if (strong) FontWeight.Bold else FontWeight.Medium,
+                maxLines = 1,
+                autoSize = TextAutoSize.StepBased(
+                    minFontSize = 10.sp,
+                    maxFontSize = MaterialTheme.typography.labelLarge.fontSize
+                )
             )
         }
     }
@@ -198,71 +233,4 @@ private fun iconFor(kind: ChipKind): ImageVector? = when (kind) {
     ChipKind.WINDY -> Icons.Rounded.Air
     ChipKind.HOT -> Icons.Rounded.WaterDrop
     ChipKind.DARK -> null
-}
-
-private fun hasCurrentConditions(current: Map<String, Double>): Boolean =
-    current["temperature_2m"] != null || current["wind_speed_10m"] != null
-
-@Composable
-private fun NowStrip(
-    current: Map<String, Double>,
-    modifier: Modifier,
-    trailing: @Composable ColumnScope.() -> Unit
-) {
-    val strings = AppTheme.strings
-    val format = AppTheme.format
-    val temp = current["temperature_2m"] ?: Double.NaN
-    val apparent = current["apparent_temperature"] ?: Double.NaN
-    val wind = current["wind_speed_10m"] ?: Double.NaN
-    val windDirection = current["wind_direction_10m"] ?: Double.NaN
-    val precip = current["precipitation"] ?: 0.0
-
-    Surface(
-        modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        color = Color.White.copy(alpha = 0.18f)
-    ) {
-        Row(
-            Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                format.temp(temp),
-                style = MaterialTheme.typography.headlineMedium,
-                color = Color.White
-            )
-            Spacer(Modifier.width(14.dp))
-            Column(Modifier.weight(1f)) {
-                SectionLabel(strings.rightNow, color = Color.White.copy(alpha = 0.8f))
-                if (!apparent.isNaN()) {
-                    Text(
-                        "${strings.feelsLike} ${format.temp(apparent)}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.White
-                    )
-                }
-                val line = buildString {
-                    if (!wind.isNaN()) {
-                        append("${strings.wind} ${format.speedWithUnit(wind)} ${format.compass(windDirection)}")
-                    }
-                    if (precip > 0.02) {
-                        if (isNotEmpty()) append(" · ")
-                        append("${format.millimetres(precip)} mm")
-                    }
-                }
-                if (line.isNotEmpty()) {
-                    Text(
-                        line,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.White.copy(alpha = 0.85f)
-                    )
-                }
-            }
-            Column(
-                horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-                content = trailing
-            )
-        }
-    }
 }

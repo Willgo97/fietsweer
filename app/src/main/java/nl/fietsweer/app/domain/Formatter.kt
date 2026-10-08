@@ -87,6 +87,18 @@ class Formatter(private val strings: Strings) {
         return strings.compassPoints[((degrees / 45).roundToInt() % 8 + 8) % 8]
     }
 
+    fun windAndRain(current: Map<String, Double>): String = buildString {
+        val wind = current["wind_speed_10m"] ?: Double.NaN
+        val precipitation = current["precipitation"] ?: 0.0
+        if (!wind.isNaN()) {
+            append("${strings.wind} ${speedWithUnit(wind)} ${compass(current["wind_direction_10m"] ?: Double.NaN)}")
+        }
+        if (precipitation > 0.02) {
+            if (isNotEmpty()) append(" · ")
+            append("${millimetres(precipitation)} mm")
+        }
+    }
+
     fun daysSummary(days: Set<Int>): String = when {
         days.size == 7 -> strings.everyDay
         days == setOf(1, 2, 3, 4, 5) -> strings.weekdays

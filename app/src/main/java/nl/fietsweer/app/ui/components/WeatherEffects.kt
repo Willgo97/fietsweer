@@ -20,12 +20,16 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.ClipOp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathOperation
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.unit.dp
+import nl.fietsweer.app.domain.SkyLight
+import nl.fietsweer.app.ui.theme.Accents
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.pow
@@ -37,13 +41,12 @@ enum class WeatherEffect {
     SUN, PARTLY_CLOUDY, CLOUDS, FOG, DRIZZLE, LIGHT_RAIN, RAIN, HEAVY_RAIN, DOWNPOUR, FREEZING_RAIN, SNOW, STORM, HAIL;
 
     companion object {
-        // WMO weather codes as Open-Meteo sends them; a clear night shows no effect.
+        // WMO weather codes as Open-Meteo sends them; at night the sun is drawn as moon and stars.
         fun forCurrent(current: Map<String, Double>): WeatherEffect? {
             val code = current["weather_code"]?.roundToInt() ?: return null
-            val day = current["is_day"] != 0.0
             return when (code) {
-                0, 1 -> if (day) SUN else null
-                2 -> if (day) PARTLY_CLOUDY else CLOUDS
+                0, 1 -> SUN
+                2 -> PARTLY_CLOUDY
                 3 -> CLOUDS
                 45, 48 -> FOG
                 51, 53, 55 -> DRIZZLE
@@ -61,16 +64,51 @@ enum class WeatherEffect {
     }
 }
 
-// The weather of the moment, moving behind a card's content; cutout keeps it off a panel on top.
+private val NIGHT_SKY = Color(0xFF0C1626)
+private val DUSK_LOW = Color(0xFFE8875A)
+private val DUSK_HIGH = Color(0xFF8A5BA8)
+private const val NIGHT_DEPTH = 0.68f
+private const val DUSK_STRENGTH = 0.55f
+
+// Colours that say what the sky does, from the app's own accents: darkened at night,
+// warmed towards orange and purple around sunrise and sunset.
+fun Accents.weatherGradient(effect: WeatherEffect?, sky: SkyLight = SkyLight.DAY): Pair<Color, Color> {
+    val (dayStart, dayEnd) = dayGradient(effect)
+    val (nightStart, nightEnd) = nightGradient(effect)
+    fun shade(day: Color, night: Color, dusk: Color): Color {
+        val darkened = lerp(day, lerp(night, NIGHT_SKY, NIGHT_DEPTH), 1f - sky.daylight)
+        return lerp(darkened, dusk, sky.twilight * DUSK_STRENGTH)
+    }
+    return shade(dayStart, nightStart, DUSK_HIGH) to shade(dayEnd, nightEnd, DUSK_LOW)
+}
+
+// A clear night is blue, not a darkened sunny orange.
+private fun Accents.nightGradient(effect: WeatherEffect?): Pair<Color, Color> = when (effect) {
+    WeatherEffect.SUN, WeatherEffect.PARTLY_CLOUDY -> cold to rain
+    else -> dayGradient(effect)
+}
+
+private fun Accents.dayGradient(effect: WeatherEffect?): Pair<Color, Color> = when (effect) {
+    null -> cold to rain
+    WeatherEffect.SUN -> balmy to warm
+    WeatherEffect.PARTLY_CLOUDY -> cool to balmy
+    WeatherEffect.CLOUDS, WeatherEffect.FOG -> cold to cool
+    WeatherEffect.DRIZZLE, WeatherEffect.LIGHT_RAIN, WeatherEffect.RAIN -> rain to cold
+    WeatherEffect.HEAVY_RAIN, WeatherEffect.DOWNPOUR -> cold to likelyWet
+    WeatherEffect.STORM, WeatherEffect.HAIL -> rain to heat
+    WeatherEffect.SNOW, WeatherEffect.FREEZING_RAIN -> freezing to cold
+}
+
+// The weather of the moment, moving behind a card's content; the cutout keeps it off a panel on top.
 @Composable
-fun BoxScope.WeatherBackdrop(effect: WeatherEffect?, cutout: Rect? = null, cutoutCorner: Float = 18f) {
+fun BoxScope.WeatherBackdrop(effect: WeatherEffect?, sky: SkyLight, cutout: Rect? = null, cutoutCornerDp: Int = 0) {
     val seconds = rememberSeconds()
     Crossfade(effect, Modifier.matchParentSize(), animationSpec = tween(900), label = "weather") { shown ->
         if (shown == null) return@Crossfade
         val particles = remember(shown) { Particles(shown) }
         Canvas(Modifier.fillMaxSize()) {
-            val hole = Path().apply { cutout?.let { addRoundRect(RoundRect(it, CornerRadius(cutoutCorner.dp.toPx()))) } }
-            clipPath(hole, ClipOp.Difference) { drawWeatherEffect(shown, particles, seconds.value) }
+            val hole = Path().apply { cutout?.let { addRoundRect(RoundRect(it, CornerRadius(cutoutCornerDp.dp.toPx()))) } }
+            clipPath(hole, ClipOp.Difference) { drawWeatherEffect(shown, particles, seconds.value, sky) }
         }
     }
 }
@@ -91,10 +129,10 @@ class Particles(effect: WeatherEffect) {
     private fun next() = Particle(random.nextFloat(), random.nextFloat(), random.nextFloat(), random.nextFloat(), random.nextFloat())
 }
 
-fun DrawScope.drawWeatherEffect(effect: WeatherEffect, particles: Particles, seconds: Float): Unit = when (effect) {
-    WeatherEffect.SUN -> sun(seconds)
+fun DrawScope.drawWeatherEffect(effect: WeatherEffect, particles: Particles, seconds: Float, sky: SkyLight): Unit = when (effect) {
+    WeatherEffect.SUN -> sunOrMoon(particles, seconds, sky)
     WeatherEffect.PARTLY_CLOUDY -> {
-        sun(seconds)
+        sunOrMoon(particles, seconds, sky)
         clouds(particles.near.take(3), seconds, alpha = 0.18f, scale = 1f)
     }
     WeatherEffect.CLOUDS -> {
@@ -248,7 +286,38 @@ private fun DrawScope.fog(banks: List<Particle>, seconds: Float) {
     }
 }
 
-private fun DrawScope.sun(seconds: Float) {
+// Through dusk the sun fades out while the moon and stars fade in.
+private fun DrawScope.sunOrMoon(particles: Particles, seconds: Float, sky: SkyLight) {
+    if (sky.daylight > 0f) sun(seconds, sky.daylight)
+    if (sky.daylight < 1f) {
+        stars(particles.far.take(28), seconds, 1f - sky.daylight)
+        moon(1f - sky.daylight)
+    }
+}
+
+private fun DrawScope.stars(stars: List<Particle>, seconds: Float, strength: Float) {
+    for (star in stars) {
+        val twinkle = 0.35f + 0.65f * ((sin((seconds / (2f + 3f * star.speed) + star.phase) * 2 * PI.toFloat()) + 1) / 2).pow(2)
+        val centre = Offset(star.x * size.width, star.y * size.height * 0.75f)
+        drawCircle(Color.White.copy(alpha = 0.8f * twinkle * strength), (0.7f + 0.9f * star.size).dp.toPx(), centre)
+    }
+}
+
+// A crescent: the full disc minus a slightly shifted one, with a cool glow around it.
+private fun DrawScope.moon(strength: Float) {
+    val centre = Offset(size.width * 0.86f, size.height * 0.2f)
+    val radius = 13.dp.toPx()
+    drawCircle(
+        Brush.radialGradient(listOf(Color(0xFFDDE6FF).copy(alpha = 0.30f * strength), Color.Transparent), centre, size.height * 0.7f),
+        size.height * 0.7f, centre
+    )
+    val disc = Path().apply { addOval(Rect(centre, radius)) }
+    val shadow = Path().apply { addOval(Rect(centre + Offset(radius * 0.55f, -radius * 0.25f), radius * 0.95f)) }
+    val crescent = Path().apply { op(disc, shadow, PathOperation.Difference) }
+    drawPath(crescent, Color(0xFFF4F1E6).copy(alpha = 0.92f * strength))
+}
+
+private fun DrawScope.sun(seconds: Float, strength: Float) {
     val centre = Offset(size.width * 0.93f, size.height * 0.05f)
     val pulse = 1f + 0.05f * sin(seconds / 4f * 2 * PI.toFloat())
     val glow = size.height * 0.95f * pulse
@@ -263,11 +332,11 @@ private fun DrawScope.sun(seconds: Float) {
                 lineTo(centre.x + reach * cos(angle + half), centre.y + reach * sin(angle + half))
                 close()
             }
-            drawPath(wedge, Brush.radialGradient(listOf(Color.White.copy(alpha = 0.10f), Color.Transparent), centre, reach))
+            drawPath(wedge, Brush.radialGradient(listOf(Color.White.copy(alpha = 0.10f * strength), Color.Transparent), centre, reach))
         }
     }
     drawCircle(
-        Brush.radialGradient(listOf(Color(0xFFFFF4D2).copy(alpha = 0.45f), Color.Transparent), centre, glow),
+        Brush.radialGradient(listOf(Color(0xFFFFF4D2).copy(alpha = 0.45f * strength), Color.Transparent), centre, glow),
         glow, centre
     )
 }
@@ -290,7 +359,8 @@ private fun DrawScope.splashes(splashes: List<Particle>, seconds: Float) {
 // One path per cloud, so overlapping puffs do not show darker seams.
 private fun DrawScope.clouds(clouds: List<Particle>, seconds: Float, alpha: Float, scale: Float) {
     clouds.forEachIndexed { i, cloud ->
-        val width = size.width * (0.42f + 0.18f * cloud.size) * scale
+        // On a wide, low card the clouds follow the height, or they would fill it.
+        val width = minOf(size.width, size.height * 2.2f) * (0.42f + 0.18f * cloud.size) * scale
         val left = loop(cloud.phase, seconds, 45f + 30f * cloud.speed) * (size.width + width) - width
         val baseY = size.height * (0.30f + 0.55f * i / clouds.size)
         val shape = Path().apply {

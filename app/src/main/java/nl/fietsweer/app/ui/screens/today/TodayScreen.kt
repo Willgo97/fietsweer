@@ -11,6 +11,7 @@ import nl.fietsweer.app.data.Settings
 import nl.fietsweer.app.domain.Commute
 import nl.fietsweer.app.domain.Engine
 import nl.fietsweer.app.domain.Jacket
+import nl.fietsweer.app.domain.SkyLight
 import nl.fietsweer.app.domain.departureWindow
 import nl.fietsweer.app.ui.components.FillScreen
 import nl.fietsweer.app.ui.components.InfoCard
@@ -77,7 +78,7 @@ fun TodayScreen(
     val stretchIndex = if (nextWindow == null || rides.isEmpty()) -1 else if (errorCard != null) 2 else 1
     FillScreen(contentPadding, stretchIndex, stretchMin = 230.dp) {
         errorCard?.invoke()
-        HeroCard(advice, forecast.current)
+        HeroCard(advice, forecast.current, remember(forecast, nowTick) { SkyLight.at(nowTick, forecast) })
         rides.forEachIndexed { i, ride ->
             RideCard(ride, if (i == 0) nextWindow else null)
         }
