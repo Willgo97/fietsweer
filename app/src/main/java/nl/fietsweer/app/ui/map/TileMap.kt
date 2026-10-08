@@ -37,6 +37,7 @@ import kotlin.math.cos
 import kotlin.math.floor
 import kotlin.math.ln
 import kotlin.math.pow
+import kotlin.math.roundToInt
 import kotlin.math.sinh
 import kotlin.math.tan
 
@@ -87,6 +88,7 @@ fun TileMap(
     markers: List<MapMarker> = emptyList(),
     lines: List<MapLine> = emptyList(),
     interactive: Boolean = true,
+    overlay: (DrawScope.(project: (LatLon) -> Offset) -> Unit)? = null,
     onMoved: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
@@ -135,7 +137,7 @@ fun TileMap(
         ) {
             @Suppress("UNUSED_EXPRESSION") loadedTiles // redraw when a tile arrives
 
-            val tileZoom = floor(camera.zoom).toInt().coerceIn(0, source.maxZoom)
+            val tileZoom = camera.zoom.roundToInt().coerceIn(0, source.maxZoom)
             val tilePx = baseTile * 2f.pow(camera.zoom - tileZoom)
             val tilesPerSide = 1 shl tileZoom
 
@@ -184,6 +186,8 @@ fun TileMap(
                 centerX + ((lonToWorldX(point.lon) - lonToWorldX(camera.lon)) * world).toFloat(),
                 centerY + ((latToWorldY(point.lat) - latToWorldY(camera.lat)) * world).toFloat()
             )
+
+            overlay?.invoke(this, ::project)
 
             for (line in lines) {
                 if (line.points.size < 2) continue
