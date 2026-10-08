@@ -159,7 +159,7 @@ object WeatherApi {
     }
 
     private const val HOURLY_VARIABLES =
-        "temperature_2m,apparent_temperature,wind_speed_10m,wind_direction_10m,wind_gusts_10m"
+        "temperature_2m,apparent_temperature,wind_speed_10m,wind_direction_10m"
 
     private const val DAILY_VARIABLES =
         "weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum," +
@@ -169,7 +169,7 @@ object WeatherApi {
         "temperature_2m,apparent_temperature,precipitation,weather_code,is_day,wind_speed_10m,wind_direction_10m"
 
     private const val QUARTER_HOUR_VARIABLES =
-        "temperature_2m,apparent_temperature,wind_speed_10m,wind_direction_10m,wind_gusts_10m"
+        "temperature_2m,apparent_temperature,wind_speed_10m,wind_direction_10m"
 
     private suspend fun conditions(midpoint: LatLon): Conditions {
         val baseUrl = "https://api.open-meteo.com/v1/forecast" +

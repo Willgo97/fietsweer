@@ -67,6 +67,12 @@ data class Settings(
     val rainJacketPercent: Int = 30,
     val vestBelow: Double = 17.0,
     val winterCoatBelow: Double = 6.0,
+    val wearsGloves: Boolean = true,
+    val glovesBelow: Double = 3.0,
+    val wearsScarf: Boolean = true,
+    val scarfBelow: Double = 5.0,
+    val wearsHat: Boolean = true,
+    val hatBelow: Double = 0.0,
 
     val useRadar: Boolean = true,
     val askedLocation: Boolean = false,

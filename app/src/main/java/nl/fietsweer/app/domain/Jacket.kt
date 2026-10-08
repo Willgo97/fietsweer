@@ -11,7 +11,7 @@ enum class Need { NO, MAYBE, YES }
 
 enum class Layer { SHORT_SLEEVES, VEST, WINTER }
 
-enum class Extra { GLOVES, HAT, WINDY, FROST, HOT, HEAVY_SHOWER, DARK }
+enum class Extra { GLOVES, SCARF, HAT }
 
 data class Advice(
     val rain: Need,
@@ -28,13 +28,6 @@ object Jacket {
 
     private const val MAYBE_RAIN_FRACTION = 0.5
     private const val CERTAIN_RAIN_MM = 1.5
-    private const val GLOVES_BELOW_WINTER_C = 3.0
-    private const val HAT_MAX_C = 0.0
-    private const val HOT_MIN_C = 24.0
-    private const val FROST_MAX_C = 1.5
-    private const val WINDY_GUST_KMH = 55.0
-    private const val WINDY_HEADWIND_KMH = 25.0
-    private const val HEAVY_SHOWER_MM = 3.0
 
     fun forCommute(forecast: RouteForecast, settings: Settings, coverage: Coverage): Advice {
         val engine = Engine(forecast, settings)
@@ -73,19 +66,13 @@ object Jacket {
             else -> Layer.SHORT_SLEEVES
         }
 
+        // Hands and head, each only for people who wear it and below their own limit.
         val extras = buildList {
             if (coldest != null) {
-                if (coldest <= settings.winterCoatBelow - GLOVES_BELOW_WINTER_C) add(Extra.GLOVES)
-                if (coldest <= HAT_MAX_C) add(Extra.HAT)
-                if (coldest >= HOT_MIN_C) add(Extra.HOT)
+                if (settings.wearsGloves && coldest <= settings.glovesBelow) add(Extra.GLOVES)
+                if (settings.wearsScarf && coldest <= settings.scarfBelow) add(Extra.SCARF)
+                if (settings.wearsHat && coldest <= settings.hatBelow) add(Extra.HAT)
             }
-            val minTemp = withConditions.minOfOrNull { it.minTempC }
-            if (minTemp != null && minTemp <= FROST_MAX_C) add(Extra.FROST)
-            val gust = withConditions.maxOfOrNull { if (it.gustKmh.isNaN()) 0.0 else it.gustKmh } ?: 0.0
-            val headwind = withConditions.maxOfOrNull { if (it.headwindKmh.isNaN()) 0.0 else it.headwindKmh } ?: 0.0
-            if (gust >= WINDY_GUST_KMH || headwind >= WINDY_HEADWIND_KMH) add(Extra.WINDY)
-            if (maxMm >= HEAVY_SHOWER_MM) add(Extra.HEAVY_SHOWER)
-            if (rides.any { it.isNight }) add(Extra.DARK)
         }
 
         return Advice(rain, layer, extras, rides, withConditions.isNotEmpty())

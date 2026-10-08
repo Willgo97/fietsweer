@@ -3,9 +3,9 @@ package nl.fietsweer.app.domain
 import nl.fietsweer.app.data.Coverage
 import nl.fietsweer.app.data.Leg
 
-enum class ChipKind { RAIN_JACKET, VEST, WINTER, GLOVES, HAT, WINDY, FROST, HOT, HEAVY_SHOWER, DARK }
+enum class ChipKind { RAIN_JACKET, VEST, WINTER, GLOVES, SCARF, HAT }
 
-data class AdviceChip(val kind: ChipKind, val label: String, val strong: Boolean)
+data class AdviceChip(val kind: ChipKind, val label: String)
 
 object AdviceText {
 
@@ -32,21 +32,17 @@ object AdviceText {
     }
 
     fun chips(advice: Advice, strings: Strings): List<AdviceChip> = buildList {
-        if (advice.rain != Need.NO) add(AdviceChip(ChipKind.RAIN_JACKET, strings.chipRainJacket, advice.rain == Need.YES))
+        if (advice.rain != Need.NO) add(AdviceChip(ChipKind.RAIN_JACKET, strings.chipRainJacket))
         when (advice.layer) {
-            Layer.WINTER -> add(AdviceChip(ChipKind.WINTER, strings.chipWinter, true))
-            Layer.VEST -> add(AdviceChip(ChipKind.VEST, strings.chipVest, true))
+            Layer.WINTER -> add(AdviceChip(ChipKind.WINTER, strings.chipWinter))
+            Layer.VEST -> add(AdviceChip(ChipKind.VEST, strings.chipVest))
             Layer.SHORT_SLEEVES -> Unit
         }
         for (extra in advice.extras) {
             val chip = when (extra) {
-                Extra.GLOVES -> AdviceChip(ChipKind.GLOVES, strings.chipGloves, false)
-                Extra.HAT -> AdviceChip(ChipKind.HAT, strings.chipHat, false)
-                Extra.WINDY -> AdviceChip(ChipKind.WINDY, strings.chipWindy, false)
-                Extra.FROST -> AdviceChip(ChipKind.FROST, strings.chipFrost, false)
-                Extra.HOT -> AdviceChip(ChipKind.HOT, strings.chipHot, false)
-                Extra.HEAVY_SHOWER -> AdviceChip(ChipKind.HEAVY_SHOWER, strings.chipHeavy, false)
-                Extra.DARK -> AdviceChip(ChipKind.DARK, strings.chipDark, false)
+                Extra.GLOVES -> AdviceChip(ChipKind.GLOVES, strings.chipGloves)
+                Extra.SCARF -> AdviceChip(ChipKind.SCARF, strings.chipScarf)
+                Extra.HAT -> AdviceChip(ChipKind.HAT, strings.chipHat)
             }
             add(chip)
         }

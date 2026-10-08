@@ -91,12 +91,8 @@ open class Strings {
     open val chipVest = "Fleece"
     open val chipWinter = "Winter coat"
     open val chipGloves = "Gloves"
-    open val chipHat = "Hat or buff"
-    open val chipWindy = "Strong wind"
-    open val chipFrost = "Watch for ice"
-    open val chipHot = "Water bottle"
-    open val chipHeavy = "Heavy shower"
-    open val chipDark = "Lights on"
+    open val chipScarf = "Scarf"
+    open val chipHat = "Hat"
 
     open val rightNow = "Right now"
     open val neededOn = { day: String -> "Needed $day" }
@@ -186,6 +182,9 @@ open class Strings {
     open val rainJacketFromValue = { percent: Int -> "$percent% chance of rain" }
     open val vestBelowLabel = "Fleece below"
     open val winterBelowLabel = "Winter coat below"
+    open val handsAndHead = "Hands and head"
+    open val handsAndHeadSub = "Switch off what you never wear"
+    open val belowLabel = { item: String -> "$item below" }
     open val feltOnBike = { temperature: String -> "$temperature felt on the bike" }
     open val useRadarTitle = "Use the rain radar"
     open val theme = "Theme"
@@ -339,12 +338,8 @@ object DutchStrings : Strings() {
     override val chipVest = "Vest"
     override val chipWinter = "Winterjas"
     override val chipGloves = "Handschoenen"
-    override val chipHat = "Muts of buff"
-    override val chipWindy = "Harde wind"
-    override val chipFrost = "Pas op voor gladheid"
-    override val chipHot = "Bidon mee"
-    override val chipHeavy = "Stevige bui"
-    override val chipDark = "Licht aan"
+    override val chipScarf = "Sjaal"
+    override val chipHat = "Muts"
 
     override val rightNow = "Nu"
     override val neededOn = { day: String -> "$day nodig" }
@@ -433,6 +428,9 @@ object DutchStrings : Strings() {
     override val rainJacketFrom = "Regenjas vanaf"
     override val rainJacketFromValue = { percent: Int -> "$percent% kans op nat" }
     override val vestBelowLabel = "Vest onder"
+    override val handsAndHead = "Handen en hoofd"
+    override val handsAndHeadSub = "Zet uit wat je nooit draagt"
+    override val belowLabel = { item: String -> "$item onder" }
     override val winterBelowLabel = "Winterjas onder"
     override val feltOnBike = { temperature: String -> "$temperature gevoeld op de fiets" }
     override val useRadarTitle = "Regenradar gebruiken"

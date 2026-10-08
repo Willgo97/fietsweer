@@ -4,8 +4,6 @@ import nl.fietsweer.app.data.Geo
 import nl.fietsweer.app.data.Leg
 import nl.fietsweer.app.data.RouteForecast
 import nl.fietsweer.app.data.Settings
-import java.time.Instant
-import java.time.ZoneId
 import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.cos
@@ -27,14 +25,11 @@ data class RideAssessment(
     val modelCount: Int,
     val averageMm: Double,
     val maxMm: Double,
-    val isNight: Boolean,
 
     val hasConditions: Boolean,
     val bikeFeelC: Double,
     val minBikeFeelC: Double,
-    val minTempC: Double,
     val windKmh: Double,
-    val gustKmh: Double,
     val headwindKmh: Double,
     val windRelation: WindRelation
 ) {
@@ -73,8 +68,6 @@ class Engine(private val forecast: RouteForecast, private val settings: Settings
         private const val MODEL_WEIGHT = 1.0
 
         private const val HEADWIND_FROM_KMH = 3
-        private const val NIGHT_ENDS_HOUR = 6
-        private const val NIGHT_STARTS_HOUR = 23
 
         fun rideDurationMinutes(distanceKm: Double, speedKmh: Double): Int {
             if (speedKmh <= STANDSTILL_KMH) return STANDSTILL_RIDE_MINUTES
@@ -203,7 +196,6 @@ class Engine(private val forecast: RouteForecast, private val settings: Settings
         )
         val paceKmh = Bike.paceFor(forecast.distanceKm, durationMinutes.toDouble())
         val conditions = conditions(samples, departureMs, bearing, paceKmh)
-        val departureHour = Instant.ofEpochMilli(departureMs).atZone(ZoneId.systemDefault()).hour
 
         return RideAssessment(
             leg = leg,
@@ -215,13 +207,10 @@ class Engine(private val forecast: RouteForecast, private val settings: Settings
             modelCount = models.modelCount,
             averageMm = models.averageMm,
             maxMm = models.maxMm,
-            isNight = departureHour < NIGHT_ENDS_HOUR || departureHour >= NIGHT_STARTS_HOUR,
             hasConditions = conditions != null,
             bikeFeelC = conditions?.bikeFeelC ?: Double.NaN,
             minBikeFeelC = conditions?.minBikeFeelC ?: Double.NaN,
-            minTempC = conditions?.minTempC ?: Double.NaN,
             windKmh = conditions?.windKmh ?: Double.NaN,
-            gustKmh = conditions?.gustKmh ?: Double.NaN,
             headwindKmh = conditions?.headwindKmh ?: Double.NaN,
             windRelation = when {
                 conditions == null -> WindRelation.CROSS
@@ -321,17 +310,13 @@ class Engine(private val forecast: RouteForecast, private val settings: Settings
     private class Conditions(
         val bikeFeelC: Double,
         val minBikeFeelC: Double,
-        val minTempC: Double,
         val windKmh: Double,
-        val gustKmh: Double,
         val headwindKmh: Double
     )
 
     private fun conditions(samples: List<Sample>, departureMs: Long, bearing: Double, paceKmh: Double): Conditions? {
         var firstWind = Double.NaN
-        var firstGust = Double.NaN
         var minFeel = Double.MAX_VALUE
-        var minTemp = Double.MAX_VALUE
         var feelSum = 0.0
         var headSum = 0.0
         var count = 0
@@ -342,26 +327,19 @@ class Engine(private val forecast: RouteForecast, private val settings: Settings
             val apparent = condition("apparent_temperature", timeMs)
             val wind = condition("wind_speed_10m", timeMs)
             val windFrom = condition("wind_direction_10m", timeMs)
-            val gust = condition("wind_gusts_10m", timeMs)
             if (temperature.isNaN() || apparent.isNaN() || wind.isNaN() || windFrom.isNaN()) continue
             val feel = bikeFeel(temperature, apparent, wind, windFrom, bearing, paceKmh)
             if (feel < minFeel) minFeel = feel
-            if (temperature < minTemp) minTemp = temperature
             feelSum += feel
             headSum += windAlongRoute(wind, windFrom, bearing).first
-            if (count == 0) {
-                firstWind = wind
-                firstGust = gust
-            }
+            if (count == 0) firstWind = wind
             count++
         }
         if (count == 0) return null
         return Conditions(
             bikeFeelC = feelSum / count,
             minBikeFeelC = minFeel,
-            minTempC = minTemp,
             windKmh = firstWind,
-            gustKmh = firstGust,
             headwindKmh = headSum / count
         )
     }

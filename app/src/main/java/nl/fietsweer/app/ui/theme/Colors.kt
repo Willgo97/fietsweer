@@ -36,10 +36,10 @@ internal val BrandLight = lightColorScheme(
     outline = Color(0xFF70787D),
     outlineVariant = Color(0xFFC0C8CD),
     surfaceContainerLowest = Color(0xFFFFFFFF),
-    surfaceContainerLow = Color(0xFFF0F4F7),
-    surfaceContainer = Color(0xFFEAEEF2),
-    surfaceContainerHigh = Color(0xFFE4E9EC),
-    surfaceContainerHighest = Color(0xFFDEE3E7),
+    surfaceContainerLow = Color(0xFFDDE5EA),
+    surfaceContainer = Color(0xFFD4DDE3),
+    surfaceContainerHigh = Color(0xFFCAD4DB),
+    surfaceContainerHighest = Color(0xFFC0CBD3),
     inverseSurface = Color(0xFF2C3134),
     inverseOnSurface = Color(0xFFEDF1F4)
 )

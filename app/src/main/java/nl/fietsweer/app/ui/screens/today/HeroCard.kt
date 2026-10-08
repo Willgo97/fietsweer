@@ -18,11 +18,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.DirectionsBike
-import androidx.compose.material.icons.rounded.AcUnit
-import androidx.compose.material.icons.rounded.Air
+import androidx.compose.material.icons.rounded.BackHand
 import androidx.compose.material.icons.rounded.Checkroom
 import androidx.compose.material.icons.rounded.Umbrella
-import androidx.compose.material.icons.rounded.WaterDrop
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -50,6 +48,7 @@ import nl.fietsweer.app.domain.Advice
 import nl.fietsweer.app.domain.AdviceText
 import nl.fietsweer.app.domain.ChipKind
 import nl.fietsweer.app.domain.SkyLight
+import nl.fietsweer.app.ui.components.ClothingIcons
 import nl.fietsweer.app.ui.components.SectionLabel
 import nl.fietsweer.app.ui.components.WeatherBackdrop
 import nl.fietsweer.app.ui.components.WeatherEffect
@@ -181,12 +180,12 @@ private fun ClothingPanel(advice: Advice, modifier: Modifier) {
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (chips.isEmpty()) {
-                    HeroChip(strings.adviceNone, strong = false, icon = Icons.AutoMirrored.Rounded.DirectionsBike)
+                    HeroChip(strings.adviceNone, Icons.AutoMirrored.Rounded.DirectionsBike)
                 }
                 // Two per row: rain jacket and coat side by side, the extras below.
                 for (row in chips.chunked(2)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        row.forEach { HeroChip(it.label, it.strong, iconFor(it.kind), Modifier.weight(1f)) }
+                        row.forEach { HeroChip(it.label, iconFor(it.kind), Modifier.weight(1f)) }
                         if (row.size == 1) Spacer(Modifier.weight(1f))
                     }
                 }
@@ -196,26 +195,24 @@ private fun ClothingPanel(advice: Advice, modifier: Modifier) {
 }
 
 @Composable
-private fun HeroChip(label: String, strong: Boolean, icon: ImageVector?, modifier: Modifier = Modifier) {
+private fun HeroChip(label: String, icon: ImageVector, modifier: Modifier = Modifier) {
     Surface(
         modifier,
         shape = CircleShape,
-        color = if (strong) Color.White else Color.White.copy(alpha = 0.22f)
+        color = Color.White
     ) {
         Row(
             Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            val contentColor = if (strong) AppTheme.accents.heroInk else Color.White
-            if (icon != null) {
-                Icon(icon, null, tint = contentColor, modifier = Modifier.size(15.dp))
-                Spacer(Modifier.width(6.dp))
-            }
+            val contentColor = AppTheme.accents.heroInk
+            Icon(icon, null, tint = contentColor, modifier = Modifier.size(15.dp))
+            Spacer(Modifier.width(6.dp))
             Text(
                 label,
                 style = MaterialTheme.typography.labelLarge,
                 color = contentColor,
-                fontWeight = if (strong) FontWeight.Bold else FontWeight.Medium,
+                fontWeight = FontWeight.Bold,
                 maxLines = 1,
                 autoSize = TextAutoSize.StepBased(
                     minFontSize = 10.sp,
@@ -226,11 +223,10 @@ private fun HeroChip(label: String, strong: Boolean, icon: ImageVector?, modifie
     }
 }
 
-private fun iconFor(kind: ChipKind): ImageVector? = when (kind) {
-    ChipKind.RAIN_JACKET, ChipKind.HEAVY_SHOWER -> Icons.Rounded.Umbrella
-    ChipKind.VEST, ChipKind.WINTER, ChipKind.GLOVES, ChipKind.HAT -> Icons.Rounded.Checkroom
-    ChipKind.FROST -> Icons.Rounded.AcUnit
-    ChipKind.WINDY -> Icons.Rounded.Air
-    ChipKind.HOT -> Icons.Rounded.WaterDrop
-    ChipKind.DARK -> null
+private fun iconFor(kind: ChipKind): ImageVector = when (kind) {
+    ChipKind.RAIN_JACKET -> Icons.Rounded.Umbrella
+    ChipKind.GLOVES -> Icons.Rounded.BackHand
+    ChipKind.VEST, ChipKind.WINTER -> Icons.Rounded.Checkroom
+    ChipKind.SCARF -> ClothingIcons.Scarf
+    ChipKind.HAT -> ClothingIcons.Hat
 }
