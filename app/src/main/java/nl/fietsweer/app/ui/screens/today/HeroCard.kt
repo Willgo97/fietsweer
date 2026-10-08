@@ -2,6 +2,7 @@ package nl.fietsweer.app.ui.screens.today
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,6 +30,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,6 +41,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -47,6 +55,8 @@ import nl.fietsweer.app.domain.Layer
 import nl.fietsweer.app.domain.Need
 import nl.fietsweer.app.ui.components.ChipFlow
 import nl.fietsweer.app.ui.components.SectionLabel
+import nl.fietsweer.app.ui.components.WeatherBackdrop
+import nl.fietsweer.app.ui.components.WeatherEffect
 import nl.fietsweer.app.ui.theme.AppTheme
 
 @Composable
@@ -63,6 +73,15 @@ internal fun HeroCard(advice: Advice, current: Map<String, Double>) {
         else -> accents.dry to accents.mostlyDry
     }
 
+    // Try-out: a long press steps through every effect so each can be judged.
+    var preview by remember { mutableStateOf<WeatherEffect?>(null) }
+    val effect = preview ?: WeatherEffect.forCurrent(current)
+    var cardCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
+    var stripCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
+    val stripBounds = cardCoordinates?.let { card ->
+        stripCoordinates?.takeIf { it.isAttached }?.let { card.localBoundingBoxOf(it) }
+    }
+
     Surface(
         Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(26.dp),
@@ -72,6 +91,13 @@ internal fun HeroCard(advice: Advice, current: Map<String, Double>) {
             Modifier
                 .clip(RoundedCornerShape(26.dp))
                 .background(Brush.linearGradient(listOf(gradientStart, gradientEnd)))
+                .onGloballyPositioned { cardCoordinates = it }
+                .pointerInput(Unit) {
+                    detectTapGestures(onLongPress = {
+                        val entries = WeatherEffect.entries
+                        preview = entries[((preview?.ordinal ?: -1) + 1) % entries.size]
+                    })
+                }
         ) {
             Canvas(Modifier.fillMaxSize()) {
                 drawCircle(
@@ -85,7 +111,20 @@ internal fun HeroCard(advice: Advice, current: Map<String, Double>) {
                     center = Offset(size.width * 0.86f, size.height * 0.92f)
                 )
             }
+            WeatherBackdrop(effect, cutout = stripBounds)
+            preview?.let {
+                Text(
+                    it.name.lowercase().replace('_', ' '),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.White.copy(alpha = 0.7f),
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(end = 14.dp, bottom = 6.dp)
+                )
+            }
             Column(Modifier.padding(20.dp)) {
+                AdviceText.coverage(advice, strings, AppTheme.format)?.let {
+                    SectionLabel(it, color = Color.White.copy(alpha = 0.8f))
+                    Spacer(Modifier.height(6.dp))
+                }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         if (advice.anythingNeeded) Icons.Rounded.Checkroom else Icons.AutoMirrored.Rounded.DirectionsBike,
@@ -116,7 +155,7 @@ internal fun HeroCard(advice: Advice, current: Map<String, Double>) {
                 val chips = AdviceText.chips(advice, strings)
                 if (hasCurrentConditions(current)) {
                     Spacer(Modifier.height(14.dp))
-                    NowStrip(current) { HeroChips(chips) }
+                    NowStrip(current, Modifier.onGloballyPositioned { stripCoordinates = it }) { HeroChips(chips) }
                 } else if (chips.isNotEmpty()) {
                     Spacer(Modifier.height(14.dp))
                     ChipFlow { HeroChips(chips) }
@@ -171,6 +210,7 @@ private fun hasCurrentConditions(current: Map<String, Double>): Boolean =
 @Composable
 private fun NowStrip(
     current: Map<String, Double>,
+    modifier: Modifier,
     trailing: @Composable ColumnScope.() -> Unit
 ) {
     val strings = AppTheme.strings
@@ -182,7 +222,7 @@ private fun NowStrip(
     val precip = current["precipitation"] ?: 0.0
 
     Surface(
-        Modifier.fillMaxWidth(),
+        modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
         color = Color.White.copy(alpha = 0.18f)
     ) {

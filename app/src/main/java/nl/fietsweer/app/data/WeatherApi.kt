@@ -166,7 +166,7 @@ object WeatherApi {
             "precipitation_probability_max,wind_speed_10m_max,wind_direction_10m_dominant,sunrise,sunset"
 
     private const val CURRENT_VARIABLES =
-        "temperature_2m,apparent_temperature,precipitation,wind_speed_10m,wind_direction_10m"
+        "temperature_2m,apparent_temperature,precipitation,weather_code,is_day,wind_speed_10m,wind_direction_10m"
 
     private const val QUARTER_HOUR_VARIABLES =
         "temperature_2m,apparent_temperature,wind_speed_10m,wind_direction_10m,wind_gusts_10m"

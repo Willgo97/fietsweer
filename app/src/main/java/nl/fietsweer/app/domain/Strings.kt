@@ -76,6 +76,7 @@ open class Strings {
 
     open val toWork = "To work"
     open val toHome = "Back home"
+    open val bothWays = "there and back"
     open val adviceRain = "Take a rain jacket"
     open val adviceMaybeRain = "A rain jacket might be wise"
     open val adviceVest = "Fleece weather"
@@ -322,6 +323,7 @@ object DutchStrings : Strings() {
 
     override val toWork = "Heenrit"
     override val toHome = "Terugrit"
+    override val bothWays = "heen en terug"
     override val adviceRain = "Neem een regenjas mee"
     override val adviceMaybeRain = "Een regenjas is misschien verstandig"
     override val adviceVest = "Vestweer"
