@@ -17,6 +17,8 @@ import nl.fietsweer.app.domain.Jacket
 import nl.fietsweer.app.domain.Strings
 import nl.fietsweer.app.notify.AlertScheduler
 import nl.fietsweer.app.notify.Notifier
+import nl.fietsweer.app.ui.screens.map.RadarAnimation
+import nl.fietsweer.app.widget.WidgetUpdater
 
 class AppViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -36,6 +38,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         if (before.alerts != after.alerts) {
             AlertScheduler.rescheduleAll(getApplication())
         }
+        if (before.widgetStyle != after.widgetStyle || before.language != after.language) {
+            WidgetUpdater.redraw(getApplication())
+        }
         if (before.language != after.language) {
             Notifier.ensureChannel(getApplication(), Strings.of(after.language))
         }
@@ -44,6 +49,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun refresh(force: Boolean = false) {
         viewModelScope.launch {
             ForecastRepository.refresh(getApplication(), force)
+            RadarAnimation.prepare()
         }
     }
 
@@ -66,7 +72,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             }
             val engine = Engine(forecast, settings)
             val rides = Commute.plannedRides(settings, Coverage.BOTH).map(engine::assess)
-            Notifier.postAdvice(getApplication(), null, Jacket.forRides(rides, settings), strings)
+            Notifier.postAdvice(getApplication(), null, Jacket.forNextDay(rides, settings), strings)
             onDone(true)
         }
     }

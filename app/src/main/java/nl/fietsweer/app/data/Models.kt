@@ -22,6 +22,10 @@ enum class Coverage { OUTBOUND, RETURN, BOTH }
 
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 
+enum class WidgetStyle { CLASSIC, CHART, RIDES }
+
+enum class AccentColor { BRAND, WALLPAPER, BLUE, GREEN, GOLD, COPPER, BORDEAUX, ROSE, PURPLE, INK }
+
 enum class Language { SYSTEM, NL, EN }
 
 enum class MapStyle { AUTO, LIGHT, DARK, SOFT }
@@ -67,10 +71,12 @@ data class Settings(
     val winterCoatBelow: Double = 6.0,
 
     val useRadar: Boolean = true,
+    val askedLocation: Boolean = false,
     val alerts: List<Alert> = emptyList(),
 
     val theme: ThemeMode = ThemeMode.SYSTEM,
-    val dynamicColor: Boolean = true,
+    val accent: AccentColor = AccentColor.BRAND,
+    val widgetStyle: WidgetStyle = WidgetStyle.CLASSIC,
     @SerialName("lang") val language: Language = Language.SYSTEM,
     val mapStyle: MapStyle = MapStyle.AUTO,
 

@@ -1,10 +1,11 @@
 <resources>
     <string name="app_name">Fietsweer</string>
     <string name="widget_label">Which jacket?</string>
-    <string name="widget_description">Today\'s jacket verdict for both rides.</string>
+    <string name="widget_description">Jacket advice and the best moment to leave.</string>
     <string name="widget_preview_headline">Take a rain jacket</string>
-    <string name="widget_preview_chips">Rain jacket · Warm jacket</string>
-    <string name="widget_preview_leg1">To work  08:00  95% · 12°</string>
-    <string name="widget_preview_leg2">Back home  17:30  dry · 16°</string>
-    <string name="widget_preview_legs_inline">08:00  95% · 17:30  dry</string>
+    <string name="widget_preview_ride">Back home · 17:20 · 6%</string>
+    <string name="widget_preview_inline">08:00 96% · 17:30 dry</string>
+    <string name="widget_preview_chips">Rain jacket · Fleece</string>
+    <string name="badge_widget_label">Jacket badge</string>
+    <string name="badge_widget_description">The jacket for your next ride and its chance of rain.</string>
 </resources>
