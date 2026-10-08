@@ -117,6 +117,7 @@ internal fun StepScaffold(
     primaryLabel: String,
     onPrimary: () -> Unit,
     primaryIcon: Boolean = false,
+    primaryEnabled: Boolean = true,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val strings = AppTheme.strings
@@ -166,7 +167,7 @@ internal fun StepScaffold(
         ) {
             TextButton(onClick = onBack) { Text(strings.back) }
             Spacer(Modifier.weight(1f))
-            Button(onClick = onPrimary, shape = RoundedCornerShape(16.dp)) {
+            Button(onClick = onPrimary, enabled = primaryEnabled, shape = RoundedCornerShape(16.dp)) {
                 if (primaryIcon) {
                     Icon(Icons.Rounded.Check, null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))

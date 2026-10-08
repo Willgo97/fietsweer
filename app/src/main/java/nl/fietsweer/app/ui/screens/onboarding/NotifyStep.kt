@@ -68,6 +68,7 @@ internal fun NotifyStep(
         onBack = onBack,
         primaryLabel = strings.finishGo,
         primaryIcon = true,
+        primaryEnabled = draft.days.isNotEmpty(),
         onPrimary = {
             onUpdate { it.withAlert(draft).copy(setupDone = true) }
             onFinish()
