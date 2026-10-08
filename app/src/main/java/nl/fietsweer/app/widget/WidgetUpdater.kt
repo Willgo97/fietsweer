@@ -33,14 +33,14 @@ object WidgetUpdater {
 
         for (id in widgetIds(appContext, JacketWidget::class.java)) {
             val views = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                WidgetRenderer.build(appContext, settings, snapshot, artwork)
+                WidgetRenderer.responsive(appContext, settings, snapshot, artwork)
             } else {
                 val options = manager.getAppWidgetOptions(id)
                 val size = WidgetRenderer.sizeFor(
                     options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 250).toFloat(),
                     options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 60).toFloat()
                 )
-                WidgetRenderer.build(appContext, settings, snapshot, artwork, size)
+                WidgetRenderer.layout(appContext, settings, snapshot, artwork, size)
             }
             manager.updateAppWidget(id, views)
         }

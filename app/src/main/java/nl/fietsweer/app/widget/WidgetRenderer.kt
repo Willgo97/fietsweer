@@ -2,11 +2,11 @@ package nl.fietsweer.app.widget
 
 import android.app.PendingIntent
 import android.content.Context
-import android.content.Intent
 import android.graphics.Bitmap
 import android.os.Build
 import android.util.SizeF
 import android.widget.RemoteViews
+import androidx.annotation.RequiresApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.DirectionsBike
 import androidx.compose.material.icons.rounded.Checkroom
@@ -36,8 +36,11 @@ class WidgetArtwork(val pictures: Map<Picture, Bitmap>)
 
 object WidgetRenderer {
 
-    private const val COMPACT_BELOW_DP = 200f
-    private const val LARGE_FROM_DP = 100f
+    private const val COMPACT_BELOW_WIDTH_DP = 200f
+    private const val LARGE_FROM_HEIGHT_DP = 100f
+    private const val MIN_WIDTH_DP = 60f
+    private const val MIN_HEIGHT_DP = 40f
+    private const val OPEN_FROM_WIDGET = 42
 
     class Content internal constructor(val snapshot: WidgetSnapshot, internal val window: DepartureWindow?)
 
@@ -58,7 +61,7 @@ object WidgetRenderer {
             WidgetRide(
                 name = AdviceText.legName(planned[i].leg, strings),
                 time = AdviceText.moment(best, format),
-                rain = if (best.risk < 0.10) strings.notifDry else format.percent(best.risk),
+                rain = if (AdviceText.saysDry(best.risk)) strings.notifDry else format.percent(best.risk),
                 temperature = if (best.hasConditions) format.temp(best.bikeFeelC) else "",
                 riskColour = LightAccents.forRisk(best.risk).toArgb()
             )
@@ -69,7 +72,6 @@ object WidgetRenderer {
                 headline = AdviceText.headline(advice, strings),
                 chipLine = AdviceText.chipLine(advice, strings),
                 rides = rides,
-                updatedTime = format.time(forecast.fetchedAt),
                 accent = SystemColors.adviceAccent(advice),
                 jacket = advice.anythingNeeded,
                 riskPercent = ((windows.firstOrNull()?.best ?: next)?.riskPercent) ?: 0,
@@ -99,24 +101,21 @@ object WidgetRenderer {
         WidgetArtwork(Picture.entries.mapNotNull { picture -> WidgetArt.load(context, picture)?.let { picture to it } }.toMap())
 
     fun sizeFor(widthDp: Float, heightDp: Float): WidgetSize = when {
-        heightDp >= LARGE_FROM_DP && widthDp >= COMPACT_BELOW_DP -> WidgetSize.LARGE
-        widthDp < COMPACT_BELOW_DP -> WidgetSize.COMPACT
+        heightDp >= LARGE_FROM_HEIGHT_DP && widthDp >= COMPACT_BELOW_WIDTH_DP -> WidgetSize.LARGE
+        widthDp < COMPACT_BELOW_WIDTH_DP -> WidgetSize.COMPACT
         else -> WidgetSize.ROW
     }
 
-    // Android 12+ picks the layout per size itself; older launchers get the one for the current size.
-    fun build(context: Context, settings: Settings, snapshot: WidgetSnapshot?, artwork: WidgetArtwork, size: WidgetSize? = null): RemoteViews {
-        if (size != null || Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
-            return layout(context, settings, snapshot, artwork, size ?: WidgetSize.ROW)
-        }
-        return RemoteViews(
+    // Android 12+ picks the layout per size itself; older launchers get layout() for the current size.
+    @RequiresApi(Build.VERSION_CODES.S)
+    fun responsive(context: Context, settings: Settings, snapshot: WidgetSnapshot?, artwork: WidgetArtwork): RemoteViews =
+        RemoteViews(
             mapOf(
-                SizeF(60f, 40f) to layout(context, settings, snapshot, artwork, WidgetSize.COMPACT),
-                SizeF(COMPACT_BELOW_DP, 40f) to layout(context, settings, snapshot, artwork, WidgetSize.ROW),
-                SizeF(COMPACT_BELOW_DP, LARGE_FROM_DP) to layout(context, settings, snapshot, artwork, WidgetSize.LARGE)
+                SizeF(MIN_WIDTH_DP, MIN_HEIGHT_DP) to layout(context, settings, snapshot, artwork, WidgetSize.COMPACT),
+                SizeF(COMPACT_BELOW_WIDTH_DP, MIN_HEIGHT_DP) to layout(context, settings, snapshot, artwork, WidgetSize.ROW),
+                SizeF(COMPACT_BELOW_WIDTH_DP, LARGE_FROM_HEIGHT_DP) to layout(context, settings, snapshot, artwork, WidgetSize.LARGE)
             )
         )
-    }
 
     fun layout(
         context: Context,
@@ -126,17 +125,7 @@ object WidgetRenderer {
         size: WidgetSize,
         style: WidgetStyle = settings.widgetStyle
     ): RemoteViews {
-        val strings = Strings.of(settings.language)
-        val layoutId = when (size) {
-            WidgetSize.COMPACT -> R.layout.widget_compact
-            WidgetSize.LARGE -> R.layout.widget_large
-            WidgetSize.ROW -> when (style) {
-                WidgetStyle.CLASSIC -> R.layout.widget_classic
-                WidgetStyle.CHART -> R.layout.widget_chart
-                WidgetStyle.RIDES -> R.layout.widget_rides
-            }
-        }
-        val views = RemoteViews(context.packageName, layoutId)
+        val views = RemoteViews(context.packageName, layoutIdFor(size, style))
         views.setOnClickPendingIntent(R.id.widget_root, openApp(context))
 
         val badge = if (snapshot == null) WidgetArt.badge(context, iconFor(null), SystemColors.widgetIdle)
@@ -145,45 +134,57 @@ object WidgetRenderer {
 
         val showsRides = size == WidgetSize.LARGE || (size == WidgetSize.ROW && style == WidgetStyle.RIDES)
         if (snapshot == null) {
-            if (!showsRides) {
-                views.setTextViewText(R.id.widget_headline, strings.setupNeededTitle)
-                views.setTextViewText(R.id.widget_detail, strings.setupNeededBody)
-            } else {
-                fillRide(views, 1, WidgetRide(strings.setupNeededTitle, "", "", "", SystemColors.widgetIdle))
-                fillRide(views, 2, null)
-                if (size == WidgetSize.LARGE) {
-                    views.setTextViewText(R.id.widget_headline, strings.setupNeededTitle)
-                    views.setTextViewText(R.id.widget_detail, strings.setupNeededBody)
-                }
-            }
+            fillSetupNeeded(views, Strings.of(settings.language), size, showsRides)
             return views
         }
+        fillSummary(views, snapshot, artwork, size, style)
+        if (showsRides) {
+            fillRide(views, 1, snapshot.rides.getOrNull(0))
+            fillRide(views, 2, snapshot.rides.getOrNull(1))
+        }
+        return views
+    }
 
+    private fun layoutIdFor(size: WidgetSize, style: WidgetStyle): Int = when (size) {
+        WidgetSize.COMPACT -> R.layout.widget_compact
+        WidgetSize.LARGE -> R.layout.widget_large
+        WidgetSize.ROW -> when (style) {
+            WidgetStyle.CLASSIC -> R.layout.widget_classic
+            WidgetStyle.CHART -> R.layout.widget_chart
+            WidgetStyle.RIDES -> R.layout.widget_rides
+        }
+    }
+
+    private fun fillSetupNeeded(views: RemoteViews, strings: Strings, size: WidgetSize, showsRides: Boolean) {
+        if (showsRides) {
+            fillRide(views, 1, WidgetRide(strings.setupNeededTitle, "", "", "", SystemColors.widgetIdle))
+            fillRide(views, 2, null)
+        }
+        if (!showsRides || size == WidgetSize.LARGE) {
+            views.setTextViewText(R.id.widget_headline, strings.setupNeededTitle)
+            views.setTextViewText(R.id.widget_detail, strings.setupNeededBody)
+        }
+    }
+
+    private fun fillSummary(views: RemoteViews, snapshot: WidgetSnapshot, artwork: WidgetArtwork, size: WidgetSize, style: WidgetStyle) {
         when {
             size == WidgetSize.ROW && style == WidgetStyle.RIDES -> Unit
             size == WidgetSize.ROW && style == WidgetStyle.CHART -> {
                 views.setTextViewText(R.id.widget_headline, snapshot.headline)
                 val next = snapshot.rides.firstOrNull()
                 views.setTextViewText(R.id.widget_detail, next?.let { "${it.name} · ${it.time} · ${it.rain}" }.orEmpty())
+                views.setImageViewBitmap(R.id.widget_chart, artwork.pictures[Picture.CHART])
             }
             size == WidgetSize.LARGE -> {
                 views.setTextViewText(R.id.widget_headline, snapshot.headline)
                 views.setTextViewText(R.id.widget_detail, snapshot.chipLine)
+                views.setImageViewBitmap(R.id.widget_chart, artwork.pictures[Picture.CHART_WIDE])
             }
             else -> {
                 views.setTextViewText(R.id.widget_headline, snapshot.headline)
                 views.setTextViewText(R.id.widget_detail, snapshot.ridesInline)
             }
         }
-        if (showsRides) {
-            fillRide(views, 1, snapshot.rides.getOrNull(0))
-            fillRide(views, 2, snapshot.rides.getOrNull(1))
-        }
-        when {
-            size == WidgetSize.LARGE -> views.setImageViewBitmap(R.id.widget_chart, artwork.pictures[Picture.CHART_WIDE])
-            size == WidgetSize.ROW && style == WidgetStyle.CHART -> views.setImageViewBitmap(R.id.widget_chart, artwork.pictures[Picture.CHART])
-        }
-        return views
     }
 
     private fun fillRide(views: RemoteViews, number: Int, ride: WidgetRide?) {
@@ -211,9 +212,5 @@ object WidgetRenderer {
         return views
     }
 
-    private fun openApp(context: Context): PendingIntent = PendingIntent.getActivity(
-        context, 42,
-        Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
-        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-    )
+    private fun openApp(context: Context): PendingIntent = MainActivity.openIntent(context, OPEN_FROM_WIDGET)
 }

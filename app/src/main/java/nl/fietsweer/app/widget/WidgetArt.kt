@@ -11,6 +11,7 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RectF
 import android.graphics.Shader
+import androidx.compose.material3.ColorScheme
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asAndroidPath
 import androidx.compose.ui.graphics.toArgb
@@ -18,8 +19,12 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.VectorGroup
 import androidx.compose.ui.graphics.vector.VectorPath
 import androidx.compose.ui.graphics.vector.toPath
+import nl.fietsweer.app.R
+import nl.fietsweer.app.domain.ChartSeries
 import nl.fietsweer.app.domain.DepartureWindow
+import nl.fietsweer.app.domain.RideAssessment
 import nl.fietsweer.app.ui.components.charts.rainIntensity
+import nl.fietsweer.app.ui.theme.Accents
 import nl.fietsweer.app.ui.theme.BrandDark
 import nl.fietsweer.app.ui.theme.BrandLight
 import nl.fietsweer.app.ui.theme.DarkAccents
@@ -33,8 +38,7 @@ object WidgetArt {
 
     private const val BADGE_DP = 38
     private const val RING_DP = 160
-    private const val SPAN_MS = 2 * 60 * 60_000L
-    private const val SLOT_MS = 15 * 60_000L
+    private const val SPAN_MS = DepartureWindow.VISIBLE_MS
 
     enum class Picture(val fileName: String) { BADGE("badge"), RING("ring"), CHART("chart"), CHART_WIDE("chart_wide") }
 
@@ -45,8 +49,11 @@ object WidgetArt {
 
     fun clear(context: Context) = Picture.entries.forEach { file(context, it).delete() }
 
-    fun isDark(context: Context): Boolean =
-        context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
+    // Follows the system theme, as the widget's own background drawable does.
+    private fun palette(context: Context): Pair<Accents, ColorScheme> {
+        val dark = context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
+        return if (dark) DarkAccents to BrandDark else LightAccents to BrandLight
+    }
 
     fun save(bitmap: Bitmap, file: File) {
         file.parentFile?.mkdirs()
@@ -58,14 +65,16 @@ object WidgetArt {
         val bitmap = Bitmap.createBitmap(px, px, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         canvas.drawCircle(px / 2f, px / 2f, px / 2f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = accent })
-        val iconPx = px * 0.56f
-        canvas.save()
-        canvas.translate((px - iconPx) / 2, (px - iconPx) / 2)
-        canvas.scale(iconPx / icon.viewportWidth, iconPx / icon.viewportHeight)
-        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = android.graphics.Color.WHITE }
-        drawGroup(canvas, icon.root, paint)
-        canvas.restore()
+        drawIcon(canvas, icon, px / 2f, px / 2f, px * 0.56f)
         return bitmap
+    }
+
+    private fun drawIcon(canvas: Canvas, icon: ImageVector, centreX: Float, centreY: Float, sizePx: Float) {
+        canvas.save()
+        canvas.translate(centreX - sizePx / 2, centreY - sizePx / 2)
+        canvas.scale(sizePx / icon.viewportWidth, sizePx / icon.viewportHeight)
+        drawGroup(canvas, icon.root, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = android.graphics.Color.WHITE })
+        canvas.restore()
     }
 
     private fun drawGroup(canvas: Canvas, group: VectorGroup, paint: Paint) {
@@ -82,52 +91,70 @@ object WidgetArt {
         val height = (heightDp * density).roundToInt()
         val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
-        val dark = isDark(context)
-        val accents = if (dark) DarkAccents else LightAccents
-        val scheme = if (dark) BrandDark else BrandLight
-
+        val (accents, scheme) = palette(context)
         val centreMs = (window.plannedDepartureMs + window.plannedArrivalMs) / 2
-        val startMs = centreMs - SPAN_MS / 2
-        fun xOf(timeMs: Long) = (timeMs - startMs).toFloat() / SPAN_MS * width
-        val corner = 8 * density
+        val chart = ChartPainter(canvas, width.toFloat(), height.toFloat(), density, centreMs - SPAN_MS / 2, accents, scheme)
 
+        val corner = 8 * density
         val frame = Path().apply { addRoundRect(RectF(0f, 0f, width.toFloat(), height.toFloat()), corner, corner, Path.Direction.CW) }
         canvas.save()
         canvas.clipPath(frame)
         canvas.drawColor(scheme.surfaceContainerHighest.copy(alpha = 0.5f).toArgb())
+        chart.riskTint(window.slots)
+        chart.bestRide(window.best)
+        chart.rain(window.series)
+        chart.temperature(window.series)
+        chart.plannedRide(window.plannedDepartureMs, window.plannedArrivalMs)
+        canvas.restore()
+        return bitmap
+    }
 
-        val slots = window.slots
-        if (slots.size >= 2) {
-            val positions = FloatArray(slots.size) { (xOf(slots[it].departureMs + SLOT_MS / 2) / width).coerceIn(0f, 1f) }
+    private class ChartPainter(
+        val canvas: Canvas,
+        val width: Float,
+        val height: Float,
+        val density: Float,
+        val startMs: Long,
+        val accents: Accents,
+        val scheme: ColorScheme
+    ) {
+        fun xOf(timeMs: Long) = (timeMs - startMs).toFloat() / SPAN_MS * width
+
+        fun riskTint(slots: List<RideAssessment>) {
+            if (slots.size < 2) return
+            val positions = FloatArray(slots.size) { (xOf(slots[it].slotCentreMs) / width).coerceIn(0f, 1f) }
             val colours = IntArray(slots.size) { accents.forRisk(slots[it].risk).copy(alpha = 0.18f).toArgb() }
             val sorted = positions.indices.sortedBy { positions[it] }
-            canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), Paint().apply {
-                shader = LinearGradient(0f, 0f, width.toFloat(), 0f,
+            canvas.drawRect(0f, 0f, width, height, Paint().apply {
+                shader = LinearGradient(0f, 0f, width, 0f,
                     IntArray(sorted.size) { colours[sorted[it]] }, FloatArray(sorted.size) { positions[sorted[it]] }, Shader.TileMode.CLAMP)
             })
         }
 
-        val best = window.best
-        val bestColour = accents.forRisk(best.risk)
-        val left = xOf(best.departureMs)
-        val right = xOf(best.arrivalMs)
-        canvas.drawRoundRect(RectF(left, 0f, right, height.toFloat()), 4 * density, 4 * density,
-            Paint(Paint.ANTI_ALIAS_FLAG).apply { color = bestColour.copy(alpha = 0.28f).toArgb() })
-        canvas.drawRect(left, 0f, left + 2.5f * density, height.toFloat(),
-            Paint().apply { color = bestColour.copy(alpha = 0.9f).toArgb() })
-
-        val series = window.series
-        val rain = Path()
-        rain.moveTo(xOf(series.times.first()), height.toFloat())
-        for (i in series.times.indices) {
-            rain.lineTo(xOf(series.times[i]), height * (1f - rainIntensity(series.rainMmPerHour[i]) * 0.85f))
+        fun bestRide(best: RideAssessment) {
+            val bestColour = accents.forRisk(best.risk)
+            val left = xOf(best.departureMs)
+            val right = xOf(best.arrivalMs)
+            canvas.drawRoundRect(RectF(left, 0f, right, height), 4 * density, 4 * density,
+                Paint(Paint.ANTI_ALIAS_FLAG).apply { color = bestColour.copy(alpha = 0.28f).toArgb() })
+            canvas.drawRect(left, 0f, left + 2.5f * density, height,
+                Paint().apply { color = bestColour.copy(alpha = 0.9f).toArgb() })
         }
-        rain.lineTo(xOf(series.times.last()), height.toFloat())
-        rain.close()
-        canvas.drawPath(rain, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = accents.rain.copy(alpha = 0.85f).toArgb() })
 
-        val visible = series.times.indices.filter { series.times[it] in startMs..startMs + SPAN_MS && !series.temperatureC[it].isNaN() }
-        if (visible.size >= 2) {
+        fun rain(series: ChartSeries) {
+            val rain = Path()
+            rain.moveTo(xOf(series.times.first()), height)
+            for (i in series.times.indices) {
+                rain.lineTo(xOf(series.times[i]), height * (1f - rainIntensity(series.rainMmPerHour[i]) * 0.85f))
+            }
+            rain.lineTo(xOf(series.times.last()), height)
+            rain.close()
+            canvas.drawPath(rain, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = accents.rain.copy(alpha = 0.85f).toArgb() })
+        }
+
+        fun temperature(series: ChartSeries) {
+            val visible = series.times.indices.filter { series.times[it] in startMs..startMs + SPAN_MS && !series.temperatureC[it].isNaN() }
+            if (visible.size < 2) return
             val temps = visible.map { series.temperatureC[it] }
             val low = temps.min() - 1
             val span = max(2.0, temps.max() + 1 - low)
@@ -143,18 +170,18 @@ object WidgetArt {
             })
         }
 
-        val outline = 1.2f * density
-        canvas.drawRoundRect(
-            RectF(xOf(window.plannedDepartureMs) + outline / 2, outline / 2, xOf(window.plannedArrivalMs) - outline / 2, height - outline / 2),
-            4 * density, 4 * density,
-            Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                style = Paint.Style.STROKE; strokeWidth = outline
-                color = scheme.onSurface.copy(alpha = 0.5f).toArgb()
-                pathEffect = DashPathEffect(floatArrayOf(4 * density, 3 * density), 0f)
-            }
-        )
-        canvas.restore()
-        return bitmap
+        fun plannedRide(departureMs: Long, arrivalMs: Long) {
+            val outline = 1.2f * density
+            canvas.drawRoundRect(
+                RectF(xOf(departureMs) + outline / 2, outline / 2, xOf(arrivalMs) - outline / 2, height - outline / 2),
+                4 * density, 4 * density,
+                Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                    style = Paint.Style.STROKE; strokeWidth = outline
+                    color = scheme.onSurface.copy(alpha = 0.5f).toArgb()
+                    pathEffect = DashPathEffect(floatArrayOf(4 * density, 3 * density), 0f)
+                }
+            )
+        }
     }
 
     // Jacket icon in the advice colour, a ring that fills with the chance of rain, and the felt temperature.
@@ -162,14 +189,12 @@ object WidgetArt {
         val px = (RING_DP * context.resources.displayMetrics.density).roundToInt()
         val bitmap = Bitmap.createBitmap(px, px, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
-        val dark = isDark(context)
-        val scheme = if (dark) BrandDark else BrandLight
-        val accents = if (dark) DarkAccents else LightAccents
+        val (accents, scheme) = palette(context)
         val centre = px / 2f
         val stroke = px * 0.07f
 
         canvas.drawCircle(centre, centre, centre, Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = if (dark) 0xFF141A1E.toInt() else 0xFFF7FAFC.toInt()
+            color = context.getColor(R.color.widget_surface)
         })
         val arc = RectF(stroke * 1.4f, stroke * 1.4f, px - stroke * 1.4f, px - stroke * 1.4f)
         val track = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -185,11 +210,7 @@ object WidgetArt {
 
         val iconPx = px * 0.34f
         canvas.drawCircle(centre, px * 0.40f, iconPx * 0.82f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = accent })
-        canvas.save()
-        canvas.translate(centre - iconPx / 2, px * 0.40f - iconPx / 2)
-        canvas.scale(iconPx / icon.viewportWidth, iconPx / icon.viewportHeight)
-        drawGroup(canvas, icon.root, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = android.graphics.Color.WHITE })
-        canvas.restore()
+        drawIcon(canvas, icon, centre, px * 0.40f, iconPx)
 
         val text = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = scheme.onSurface.toArgb(); textSize = px * 0.15f; textAlign = Paint.Align.CENTER

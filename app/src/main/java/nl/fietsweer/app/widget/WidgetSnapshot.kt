@@ -18,7 +18,6 @@ data class WidgetSnapshot(
     val headline: String,
     val chipLine: String,
     val rides: List<WidgetRide>,
-    val updatedTime: String,
     val accent: Int,
     val jacket: Boolean,
     val riskPercent: Int,
