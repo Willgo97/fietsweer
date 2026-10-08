@@ -121,10 +121,6 @@ internal fun HeroCard(advice: Advice, current: Map<String, Double>) {
                 )
             }
             Column(Modifier.padding(20.dp)) {
-                AdviceText.coverage(advice, strings, AppTheme.format)?.let {
-                    SectionLabel(it, color = Color.White.copy(alpha = 0.8f))
-                    Spacer(Modifier.height(6.dp))
-                }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         if (advice.anythingNeeded) Icons.Rounded.Checkroom else Icons.AutoMirrored.Rounded.DirectionsBike,

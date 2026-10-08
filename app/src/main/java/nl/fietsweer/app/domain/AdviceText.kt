@@ -57,14 +57,6 @@ object AdviceText {
         return if (chips.isEmpty()) strings.adviceNoneSub else chips.joinToString(" · ") { it.label }
     }
 
-    // Which rides the clothing advice covers, e.g. "tomorrow · there and back".
-    fun coverage(advice: Advice, strings: Strings, format: Formatter): String? {
-        val first = advice.rides.minByOrNull { it.departureMs } ?: return null
-        val legs = advice.rides.map { it.leg }.distinct()
-        val which = if (legs.size > 1) strings.bothWays else legName(legs.single(), strings)
-        return "${format.dayWord(first.departureMs)} · $which"
-    }
-
     fun legName(leg: Leg, strings: Strings): String = if (leg == Leg.OUTBOUND) strings.toWork else strings.toHome
 
     fun coverageName(coverage: Coverage, strings: Strings): String = when (coverage) {
