@@ -6,8 +6,6 @@ import androidx.work.WorkerParameters
 import nl.fietsweer.app.data.Coverage
 import nl.fietsweer.app.data.ForecastRepository
 import nl.fietsweer.app.data.SettingsStore
-import nl.fietsweer.app.domain.Commute
-import nl.fietsweer.app.domain.Engine
 import nl.fietsweer.app.domain.Jacket
 import nl.fietsweer.app.domain.Strings
 import nl.fietsweer.app.widget.WidgetUpdater
@@ -32,9 +30,7 @@ class AlertWorker(context: Context, params: WorkerParameters) : CoroutineWorker(
             }
         }
 
-        val engine = Engine(forecast, settings)
-        val rides = Commute.plannedRides(settings, coverage).map(engine::assess)
-        val advice = Jacket.forNextDay(rides, settings)
+        val advice = Jacket.forCommute(forecast, settings, coverage)
 
         if (alert?.onlyWhenNeeded == true && !advice.anythingNeeded) {
             return Result.success()

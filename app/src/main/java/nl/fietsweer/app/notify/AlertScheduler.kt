@@ -8,9 +8,7 @@ import android.os.Build
 import android.util.Log
 import nl.fietsweer.app.data.Alert
 import nl.fietsweer.app.data.SettingsStore
-import java.time.Instant
-import java.time.ZoneId
-import java.time.ZonedDateTime
+import nl.fietsweer.app.domain.nextTriggerMs
 
 object AlertScheduler {
 
@@ -26,22 +24,6 @@ object AlertScheduler {
         return alarmManager.canScheduleExactAlarms()
     }
 
-    fun nextTrigger(alert: Alert): Long? {
-        if (!alert.enabled || alert.days.isEmpty()) return null
-        val fromMs = System.currentTimeMillis()
-        val zone = ZoneId.systemDefault()
-        val now = ZonedDateTime.ofInstant(Instant.ofEpochMilli(fromMs), zone)
-        for (daysAhead in 0..8L) {
-            val date = now.toLocalDate().plusDays(daysAhead)
-            if (date.dayOfWeek.value !in alert.days) continue
-            val triggerAt = date.atTime(alert.hour.coerceIn(0, 23), alert.minute.coerceIn(0, 59))
-                .atZone(zone)
-            val triggerMs = triggerAt.toInstant().toEpochMilli()
-            if (triggerMs > fromMs + 1000) return triggerMs
-        }
-        return null
-    }
-
     fun rescheduleAll(context: Context) {
         val appContext = context.applicationContext
         val alarmManager = appContext.getSystemService(AlarmManager::class.java) ?: return
@@ -54,7 +36,7 @@ object AlertScheduler {
         val alerts = SettingsStore.get(appContext).current.alerts
         val scheduledIds = mutableSetOf<String>()
         for (alert in alerts) {
-            val triggerMs = nextTrigger(alert) ?: continue
+            val triggerMs = alert.nextTriggerMs() ?: continue
             schedule(appContext, alarmManager, alert.id, triggerMs)
             scheduledIds += alert.id
         }
@@ -65,7 +47,7 @@ object AlertScheduler {
     fun scheduleNext(context: Context, alert: Alert) {
         val appContext = context.applicationContext
         val alarmManager = appContext.getSystemService(AlarmManager::class.java) ?: return
-        val triggerMs = nextTrigger(alert) ?: return
+        val triggerMs = alert.nextTriggerMs() ?: return
         schedule(appContext, alarmManager, alert.id, triggerMs)
     }
 

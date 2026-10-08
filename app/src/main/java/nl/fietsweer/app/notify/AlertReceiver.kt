@@ -31,7 +31,6 @@ class AlertReceiver : BroadcastReceiver() {
                 .setConstraints(
                     Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
                 )
-                .addTag("fietsweer-alert")
                 .build()
             WorkManager.getInstance(context.applicationContext)
                 .enqueueUniqueWork("alert-$alertId", ExistingWorkPolicy.REPLACE, request)

@@ -23,7 +23,11 @@ import nl.fietsweer.app.ui.theme.SystemColors
 object Notifier {
 
     private const val CHANNEL_ID = "commute_advice"
-    private const val SUMMARY_BASE_ID = 7000
+    private const val ADVICE_NOTIFICATION_BASE_ID = 7000
+    private const val PROBLEM_NOTIFICATION_ID = 7500
+    private const val OPEN_FROM_ADVICE = 1
+    private const val OPEN_FROM_PROBLEM = 3
+    private const val SNOOZE_REQUEST = 2
 
     fun ensureChannel(context: Context, strings: Strings) {
         val notificationManager = context.getSystemService(NotificationManager::class.java) ?: return
@@ -65,13 +69,6 @@ object Notifier {
             for (line in legLines) { append('\n'); append(line) }
         }
 
-        val openApp = PendingIntent.getActivity(
-            context, 1,
-            Intent(context, MainActivity::class.java)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-        )
-
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
@@ -80,42 +77,34 @@ object Notifier {
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setColor(SystemColors.adviceAccent(advice))
-            .setColorized(false)
             .setAutoCancel(true)
-            .setContentIntent(openApp)
-            .setWhen(System.currentTimeMillis())
-            .setShowWhen(true)
+            .setContentIntent(MainActivity.openIntent(context, OPEN_FROM_ADVICE))
 
         if (advice.definite) {
             val snooze = PendingIntent.getBroadcast(
-                context, 2,
+                context, SNOOZE_REQUEST,
                 Intent(context, SnoozeReceiver::class.java)
-                    .putExtra(SnoozeReceiver.EXTRA_ALERT_ID, alert?.id ?: ""),
+                    .putExtra(AlertReceiver.EXTRA_ALERT_ID, alert?.id ?: ""),
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
             )
             builder.addAction(0, strings.notifSnooze, snooze)
         }
 
-        val notificationId = SUMMARY_BASE_ID + (alert?.id?.hashCode()?.and(0xFF) ?: 0)
+        val notificationId = ADVICE_NOTIFICATION_BASE_ID + (alert?.id?.hashCode()?.and(0xFF) ?: 0)
         runCatching { NotificationManagerCompat.from(context).notify(notificationId, builder.build()) }
     }
 
     fun postProblem(context: Context, strings: Strings, message: String) {
         if (!canPost(context)) return
         ensureChannel(context, strings)
-        val openApp = PendingIntent.getActivity(
-            context, 3,
-            Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-        )
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(strings.notifNoData)
             .setContentText(message)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setAutoCancel(true)
-            .setContentIntent(openApp)
+            .setContentIntent(MainActivity.openIntent(context, OPEN_FROM_PROBLEM, clearTop = false))
             .build()
-        runCatching { NotificationManagerCompat.from(context).notify(SUMMARY_BASE_ID + 500, notification) }
+        runCatching { NotificationManagerCompat.from(context).notify(PROBLEM_NOTIFICATION_ID, notification) }
     }
 }

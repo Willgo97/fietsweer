@@ -45,6 +45,7 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import nl.fietsweer.app.data.Alert
 import nl.fietsweer.app.data.Settings
 import nl.fietsweer.app.domain.AdviceText
+import nl.fietsweer.app.domain.nextTriggerMs
 import nl.fietsweer.app.notify.AlertScheduler
 import nl.fietsweer.app.notify.Notifier
 import nl.fietsweer.app.ui.components.ButtonLabel
@@ -238,7 +239,7 @@ private fun AlertRow(alert: Alert, onClick: () -> Unit, onToggle: (Boolean) -> U
             }
         }
         if (alert.enabled) {
-            AlertScheduler.nextTrigger(alert)?.let {
+            alert.nextTriggerMs()?.let {
                 Spacer(Modifier.height(8.dp))
                 Caption(strings.nextFire(format.relativeShort(it)))
             }

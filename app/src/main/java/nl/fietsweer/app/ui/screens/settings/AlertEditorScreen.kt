@@ -36,7 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import nl.fietsweer.app.data.Alert
-import nl.fietsweer.app.notify.AlertScheduler
+import nl.fietsweer.app.domain.nextTriggerMs
 import nl.fietsweer.app.ui.components.ButtonLabel
 import nl.fietsweer.app.ui.components.Caption
 import nl.fietsweer.app.ui.components.CoverageChoice
@@ -110,7 +110,7 @@ fun AlertEditorScreen(
                 }
                 Spacer(Modifier.height(10.dp))
                 Caption(
-                    AlertScheduler.nextTrigger(draft.copy(enabled = true))
+                    draft.copy(enabled = true).nextTriggerMs()
                         ?.let { strings.nextFire(format.dayTime(it)) } ?: strings.neverRepeats
                 )
             }

@@ -1,5 +1,8 @@
 package nl.fietsweer.app
 
+import android.app.PendingIntent
+import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -31,6 +34,17 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             FietsweerRoot(viewModel, versionName)
+        }
+    }
+
+    companion object {
+        fun openIntent(context: Context, requestCode: Int, clearTop: Boolean = true): PendingIntent {
+            val flags = if (clearTop) Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP else Intent.FLAG_ACTIVITY_NEW_TASK
+            return PendingIntent.getActivity(
+                context, requestCode,
+                Intent(context, MainActivity::class.java).addFlags(flags),
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            )
         }
     }
 }
